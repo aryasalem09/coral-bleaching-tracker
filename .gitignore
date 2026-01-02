@@ -1,0 +1,18 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.env.*
+
+# ide
+.idea/
+*.iml
+
+# data / artifacts
+data/raw/
+models/
+reports/
+web_data/
+data/processed/reef_with_preds.csv
