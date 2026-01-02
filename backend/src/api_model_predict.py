@@ -37,8 +37,6 @@ NOAA_HS_BASE = os.getenv(
 )
 
 NOAA_YEARS_BACK = int(os.getenv("NOAA_YEARS_BACK", "2"))
-
-
 XR_ENGINE = os.getenv("XR_ENGINE", "h5netcdf")
 
 app = FastAPI(title="Coral Bleaching Risk Estimator")
@@ -62,9 +60,21 @@ def _must_exist(path: str, label: str):
         raise RuntimeError(f"missing {label}: {path}")
 
 def _ensure_dirs():
-
     os.makedirs(DHW_DIR, exist_ok=True)
     os.makedirs(HS_DIR, exist_ok=True)
+
+def _xr_open(path: str) -> xr.Dataset:
+    return xr.open_dataset(path, engine=XR_ENGINE)
+
+def _finite(x: float) -> bool:
+    return np.isfinite(x)
+
+def _finite_or_422(x: float, name: str):
+    if not _finite(x):
+        raise HTTPException(
+            status_code=422,
+            detail=f"{name} is not a finite number for this location/date (likely land/masked grid). try a nearby reef point.",
+        )
 
 def haversine_km(lat1, lon1, lat2, lon2):
     r = 6371.0
@@ -110,10 +120,6 @@ def _read_point(ds: xr.Dataset, var_name: str, lat: float, lon: float) -> float:
     da = _pick_time0(da)
     return float(da.values)
 
-def _xr_open(path: str) -> xr.Dataset:
-    # netcdf
-    return xr.open_dataset(path, engine=XR_ENGINE)
-
 _must_exist(REEF_FEATURES_PATH, "reef_features.csv")
 reef_df = pd.read_csv(REEF_FEATURES_PATH)
 if LAT_COL not in reef_df.columns or LON_COL not in reef_df.columns:
@@ -138,8 +144,6 @@ def _model_prob(lat: float, lon: float, dhw: float, hotspot: float) -> float:
     x = torch.tensor([[lat, lon, dhw, hotspot]], dtype=torch.float32)
     with torch.no_grad():
         return float(model(x).cpu().numpy()[0][0])
-
-_DATE_RE = re.compile(r"(\d{8})")
 
 def _http_get_text(url: str) -> str:
     req = Request(url, headers={"User-Agent": "coral-bleaching-tracker/1.0"})
@@ -178,7 +182,6 @@ def _refresh_available_dates() -> list[str]:
 def _download_file(url: str, out_path: str):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
-    # already cached
     if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
         return
 
@@ -244,6 +247,10 @@ def get_noaa_values(lat: float, lon: float, date_obj: pd.Timestamp):
     try:
         dhw = _read_point(ds_dhw, "degree_heating_week", lat, lon)
         hs = _read_point(ds_hs, "hotspot", lat, lon)
+
+        _finite_or_422(dhw, "dhw")
+        _finite_or_422(hs, "hotspot")
+
         return float(dhw), float(hs)
     finally:
         ds_dhw.close()
@@ -343,30 +350,39 @@ def estimate_risk(req: EstimateRequest):
 
     dhw, hotspot = get_noaa_values(req.lat, req.lon, d)
     risk_prob = _model_prob(req.lat, req.lon, dhw, hotspot)
+
+    _finite_or_422(risk_prob, "risk_prob")
+
     return {
         "lat": req.lat,
         "lon": req.lon,
         "date": req.date,
-        "dhw": dhw,
-        "hotspot": hotspot,
-        "risk_prob": risk_prob,
+        "dhw": float(dhw),
+        "hotspot": float(hotspot),
+        "risk_prob": float(risk_prob),
         "risk_flag": int(risk_prob >= 0.6),
     }
 
 @app.post("/estimate-from-features")
 def estimate_from_features(req: FeatureEstimateRequest):
     risk_prob = _model_prob(req.lat, req.lon, req.dhw, req.hotspot)
-    return {"risk_prob": risk_prob, "risk_flag": int(risk_prob >= 0.6)}
+    _finite_or_422(risk_prob, "risk_prob")
+    return {"risk_prob": float(risk_prob), "risk_flag": int(risk_prob >= 0.6)}
 
 @app.post("/sensitivity")
 def sensitivity(req: SensitivityRequest):
     base = _model_prob(req.lat, req.lon, req.dhw, req.hotspot)
     p_dhw = _model_prob(req.lat, req.lon, req.dhw + req.dhw_step, req.hotspot)
     p_hot = _model_prob(req.lat, req.lon, req.dhw, req.hotspot + req.hotspot_step)
+
+    _finite_or_422(base, "base")
+    _finite_or_422(p_dhw, "p_dhw")
+    _finite_or_422(p_hot, "p_hot")
+
     return {
-        "base": base,
+        "base": float(base),
         "dhw_step": req.dhw_step,
         "hotspot_step": req.hotspot_step,
-        "delta_dhw": p_dhw - base,
-        "delta_hotspot": p_hot - base,
+        "delta_dhw": float(p_dhw - base),
+        "delta_hotspot": float(p_hot - base),
     }
