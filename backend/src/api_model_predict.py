@@ -36,8 +36,10 @@ NOAA_HS_BASE = os.getenv(
     "https://www.star.nesdis.noaa.gov/pub/socd/mecb/crw/data/5km/v3.1_op/nc/v1.0/daily/hs",
 )
 
-# years scaped
 NOAA_YEARS_BACK = int(os.getenv("NOAA_YEARS_BACK", "2"))
+
+
+XR_ENGINE = os.getenv("XR_ENGINE", "h5netcdf")
 
 app = FastAPI(title="Coral Bleaching Risk Estimator")
 
@@ -60,7 +62,7 @@ def _must_exist(path: str, label: str):
         raise RuntimeError(f"missing {label}: {path}")
 
 def _ensure_dirs():
-    # writable render disk
+
     os.makedirs(DHW_DIR, exist_ok=True)
     os.makedirs(HS_DIR, exist_ok=True)
 
@@ -108,6 +110,10 @@ def _read_point(ds: xr.Dataset, var_name: str, lat: float, lon: float) -> float:
     da = _pick_time0(da)
     return float(da.values)
 
+def _xr_open(path: str) -> xr.Dataset:
+    # netcdf
+    return xr.open_dataset(path, engine=XR_ENGINE)
+
 _must_exist(REEF_FEATURES_PATH, "reef_features.csv")
 reef_df = pd.read_csv(REEF_FEATURES_PATH)
 if LAT_COL not in reef_df.columns or LON_COL not in reef_df.columns:
@@ -136,20 +142,17 @@ def _model_prob(lat: float, lon: float, dhw: float, hotspot: float) -> float:
 _DATE_RE = re.compile(r"(\d{8})")
 
 def _http_get_text(url: str) -> str:
-    # scraper
     req = Request(url, headers={"User-Agent": "coral-bleaching-tracker/1.0"})
     with urlopen(req, timeout=20) as r:
         return r.read().decode("utf-8", errors="ignore")
 
 def _scrape_year_dates(base_url: str, year: int, prefix: str) -> set[str]:
-    # YYYYMMDD
     url = f"{base_url}/{year}/"
     try:
         html = _http_get_text(url)
     except Exception:
         return set()
 
-    #  ct5km_hs_v3.1_20250101.nc, ct5km_dhw_v3.1_20250101.nc, etc. :contentReference[oaicite:1]{index=1}
     pat = re.compile(rf"{re.escape(prefix)}_(\d{{8}})\.nc")
     out = set()
     for m in pat.finditer(html):
@@ -161,7 +164,6 @@ def _scrape_year_dates(base_url: str, year: int, prefix: str) -> set[str]:
     return out
 
 def _refresh_available_dates() -> list[str]:
-    # N years
     today = date.today()
     years = list(range(today.year - NOAA_YEARS_BACK, today.year + 1))
 
@@ -176,7 +178,7 @@ def _refresh_available_dates() -> list[str]:
 def _download_file(url: str, out_path: str):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
-    # cached
+    # already cached
     if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
         return
 
@@ -204,7 +206,6 @@ def _ensure_noaa_files(date_obj: pd.Timestamp):
     dhw_path = os.path.join(DHW_DIR, dhw_fn)
     hs_path = os.path.join(HS_DIR, hs_fn)
 
-    # noaa dir .../dhw/YYYY/file.nc :contentReference[oaicite:2]{index=2}
     dhw_url = f"{NOAA_DHW_BASE}/{y}/{dhw_fn}"
     hs_url = f"{NOAA_HS_BASE}/{y}/{hs_fn}"
 
@@ -228,19 +229,18 @@ def health():
         "available_dates": int(len(AVAILABLE_DATES)),
         "cached_dhw_files": len([f for f in os.listdir(DHW_DIR) if f.endswith(".nc")]),
         "cached_hs_files": len([f for f in os.listdir(HS_DIR) if f.endswith(".nc")]),
+        "xr_engine": XR_ENGINE,
     }
 
 @app.get("/available-dates")
 def available_dates():
-    # last 1000 so you don't blast the client
     return {"count": len(AVAILABLE_DATES), "dates": AVAILABLE_DATES[-1000:]}
 
 def get_noaa_values(lat: float, lon: float, date_obj: pd.Timestamp):
-    # pull files if needed, then read locally
     dhw_path, hs_path = _ensure_noaa_files(date_obj)
 
-    ds_dhw = xr.open_dataset(dhw_path)
-    ds_hs = xr.open_dataset(hs_path)
+    ds_dhw = _xr_open(dhw_path)
+    ds_hs = _xr_open(hs_path)
     try:
         dhw = _read_point(ds_dhw, "degree_heating_week", lat, lon)
         hs = _read_point(ds_hs, "hotspot", lat, lon)
@@ -260,8 +260,8 @@ def _is_valid_point_for_date(lat: float, lon: float, iso_date: str) -> bool:
     except HTTPException:
         return False
 
-    ds_dhw = xr.open_dataset(dhw_path)
-    ds_hs = xr.open_dataset(hs_path)
+    ds_dhw = _xr_open(dhw_path)
+    ds_hs = _xr_open(hs_path)
     try:
         dhw_fill = _fill_value(ds_dhw, "degree_heating_week")
         hs_fill = _fill_value(ds_hs, "hotspot")
