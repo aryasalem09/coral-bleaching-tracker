@@ -43,7 +43,7 @@ app = FastAPI(title="Coral Bleaching Risk Estimator")
 
 raw_origins = os.getenv(
     "CORS_ORIGINS",
-    "https://aryasalem09.github.io,http://localhost:5173,http://127.0.0.1:5173",
+    "https://aryasalem09.github.io,https://coral-bleaching-tracker.vercel.app,http://localhost:5173,http://127.0.0.1:5173",
 )
 origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
 
@@ -71,6 +71,13 @@ def _finite(x: float) -> bool:
 
 def _finite_or_422(x: float, name: str):
     if not _finite(x):
+        raise HTTPException(
+            status_code=422,
+            detail=f"{name} is not a finite number for this location/date (likely land/masked grid). try a nearby reef point.",
+        )
+
+def _bad_or_422(x: float, fill: float | None, name: str):
+    if _is_bad_value(x, fill):
         raise HTTPException(
             status_code=422,
             detail=f"{name} is not a finite number for this location/date (likely land/masked grid). try a nearby reef point.",
@@ -245,11 +252,14 @@ def get_noaa_values(lat: float, lon: float, date_obj: pd.Timestamp):
     ds_dhw = _xr_open(dhw_path)
     ds_hs = _xr_open(hs_path)
     try:
+        dhw_fill = _fill_value(ds_dhw, "degree_heating_week")
+        hs_fill = _fill_value(ds_hs, "hotspot")
+
         dhw = _read_point(ds_dhw, "degree_heating_week", lat, lon)
         hs = _read_point(ds_hs, "hotspot", lat, lon)
 
-        _finite_or_422(dhw, "dhw")
-        _finite_or_422(hs, "hotspot")
+        _bad_or_422(dhw, dhw_fill, "dhw")
+        _bad_or_422(hs, hs_fill, "hotspot")
 
         return float(dhw), float(hs)
     finally:
@@ -286,6 +296,30 @@ def _is_valid_point_for_date(lat: float, lon: float, iso_date: str) -> bool:
     finally:
         ds_dhw.close()
         ds_hs.close()
+
+def snap_to_nearest_valid_reef(lat: float, lon: float, iso_date: str, max_checks: int = 500):
+    la = float(lat)
+    lo = float(lon)
+
+    r = 6371.0
+    p1 = np.radians(la)
+    p2 = np.radians(REEF_POINTS[:, 0])
+    dphi = np.radians(REEF_POINTS[:, 0] - la)
+    dl = np.radians(REEF_POINTS[:, 1] - lo)
+    a = np.sin(dphi / 2) ** 2 + np.cos(p1) * np.cos(p2) * np.sin(dl / 2) ** 2
+    d = 2 * r * np.arcsin(np.sqrt(a))
+
+    order = np.argsort(d)
+    limit = min(int(max_checks), int(order.shape[0]))
+
+    for i in range(limit):
+        idx = int(order[i])
+        rlat = float(REEF_POINTS[idx, 0])
+        rlon = float(REEF_POINTS[idx, 1])
+        if _is_valid_point_for_date(rlat, rlon, iso_date):
+            return {"lat": rlat, "lon": rlon, "distance_km": float(d[idx])}
+
+    raise HTTPException(status_code=422, detail="no valid reef point found nearby for this date.")
 
 @lru_cache(maxsize=512)
 def _available_dates_for_cached(lat_r: float, lon_r: float) -> tuple[str, ...]:
@@ -348,14 +382,36 @@ def estimate_risk(req: EstimateRequest):
     except Exception:
         raise HTTPException(status_code=400, detail="invalid date format (use yyyy-mm-dd).")
 
-    dhw, hotspot = get_noaa_values(req.lat, req.lon, d)
-    risk_prob = _model_prob(req.lat, req.lon, dhw, hotspot)
+    input_lat = float(req.lat)
+    input_lon = float(req.lon)
 
+    used_lat = input_lat
+    used_lon = input_lon
+    snapped = False
+    snap_km = 0.0
+
+    try:
+        dhw, hotspot = get_noaa_values(used_lat, used_lon, d)
+    except HTTPException as e:
+        if int(getattr(e, "status_code", 500)) != 422:
+            raise
+        snap = snap_to_nearest_valid_reef(input_lat, input_lon, req.date)
+        used_lat = float(snap["lat"])
+        used_lon = float(snap["lon"])
+        snap_km = float(snap["distance_km"])
+        snapped = True
+        dhw, hotspot = get_noaa_values(used_lat, used_lon, d)
+
+    risk_prob = _model_prob(used_lat, used_lon, dhw, hotspot)
     _finite_or_422(risk_prob, "risk_prob")
 
     return {
-        "lat": req.lat,
-        "lon": req.lon,
+        "input_lat": input_lat,
+        "input_lon": input_lon,
+        "used_lat": used_lat,
+        "used_lon": used_lon,
+        "snapped": bool(snapped),
+        "snap_km": float(snap_km),
         "date": req.date,
         "dhw": float(dhw),
         "hotspot": float(hotspot),
