@@ -19,7 +19,9 @@ type EstimateRes = {
     risk_flag: number;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://coral-bleaching-tracker.onrender.com";
+const API_BASE =
+    import.meta.env.VITE_API_BASE ??
+    "https://coral-bleaching-tracker.onrender.com";
 
 L.Icon.Default.mergeOptions({
     iconRetinaUrl,
@@ -30,6 +32,7 @@ L.Icon.Default.mergeOptions({
 function ClickHandler(props: { onClick: (lat: number, lon: number) => void }) {
     useMapEvents({
         click(e) {
+            console.log("API_BASE =", API_BASE);
             props.onClick(e.latlng.lat, e.latlng.lng);
         },
     });
