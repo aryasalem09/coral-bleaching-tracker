@@ -4,24 +4,8 @@ import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import shadowUrl from "leaflet/dist/images/marker-shadow.png";
 import { Circle, MapContainer, Marker, Polyline, TileLayer, useMapEvents } from "react-leaflet";
-
-type EstimateRes = {
-    input_lat: number;
-    input_lon: number;
-    used_lat: number;
-    used_lon: number;
-    snapped: boolean;
-    snap_km: number;
-    date: string;
-    dhw: number;
-    hotspot: number;
-    risk_prob: number;
-    risk_flag: number;
-};
-
-const API_BASE =
-    import.meta.env.VITE_API_BASE ??
-    "https://coral-bleaching-tracker.onrender.com";
+import { apiEstimate } from "../../lib/api";
+import type { EstimateResponse } from "../../lib/api";
 
 L.Icon.Default.mergeOptions({
     iconRetinaUrl,
@@ -32,7 +16,6 @@ L.Icon.Default.mergeOptions({
 function ClickHandler(props: { onClick: (lat: number, lon: number) => void }) {
     useMapEvents({
         click(e) {
-            console.log("API_BASE =", API_BASE);
             props.onClick(e.latlng.lat, e.latlng.lng);
         },
     });
@@ -43,7 +26,7 @@ export default function MapEstimateLeaflet() {
     const [dateStr, setDateStr] = useState("2024-01-01");
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState("");
-    const [res, setRes] = useState<EstimateRes | null>(null);
+    const [res, setRes] = useState<EstimateResponse | null>(null);
 
     const inputPos = useMemo(() => {
         if (!res) return null;
@@ -74,28 +57,10 @@ export default function MapEstimateLeaflet() {
         setRes(null);
 
         try {
-            const r = await fetch(`${API_BASE}/estimate`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ lat, lon, date: dateStr }),
-            });
-
-            let data: any = null;
-            try {
-                data = await r.json();
-            } catch {
-                data = null;
-            }
-
-            if (!r.ok) {
-                setErr(data?.detail || "request failed");
-                setLoading(false);
-                return;
-            }
-
-            setRes(data as EstimateRes);
-        } catch {
-            setErr("network error calling API");
+            const data = await apiEstimate({ lat, lon, date: dateStr });
+            setRes(data);
+        } catch (e: any) {
+            setErr(e?.message ?? "network error calling API");
         } finally {
             setLoading(false);
         }
