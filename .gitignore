@@ -55,3 +55,7 @@ lerna-debug.log*
 
 !backend/models/
 !backend/models/*.pth
+
+reports/
+web_data/
+
