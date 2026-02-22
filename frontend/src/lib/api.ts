@@ -24,27 +24,22 @@ export type NearestReefResponse = {
     distance_km: number;
 };
 
+export type AvailableDatesForResponse = {
+    lat: number;
+    lon: number;
+    count: number;
+    dates: string[];
+};
+
 const rawBase = (import.meta.env.VITE_API_BASE_URL ?? "").trim();
 const normalized = rawBase.replace(/\/+$/, "");
 
 let resolvedBase = normalized;
 if (!resolvedBase) {
-    if (import.meta.env.DEV) {
-        const devPort = 8000;
-        const devHost =
-            typeof window !== "undefined" && window.location?.hostname
-                ? window.location.hostname
-                : "";
-        if (!devHost) {
-            throw new Error(
-                "Missing VITE_API_BASE_URL in development. Set it in .env.local to your backend URL."
-            );
-        }
-        resolvedBase = `${window.location.protocol}//${devHost}:${devPort}`;
+    if (import.meta.env.DEV && typeof window !== "undefined" && window.location?.origin) {
+        resolvedBase = window.location.origin;
     } else {
-        throw new Error(
-            "Missing VITE_API_BASE_URL in production. Set it in .env.production to your backend URL."
-        );
+        throw new Error("Missing VITE_API_BASE_URL. Set it to your backend URL.");
     }
 }
 
@@ -115,4 +110,47 @@ export function apiEstimate(payload: EstimateRequest): Promise<EstimateResponse>
 
 export function apiNearestReef(lat: number, lon: number): Promise<NearestReefResponse> {
     return apiGet<NearestReefResponse>("/nearest-reef", { lat, lon });
+}
+
+export function apiAvailableDatesFor(lat: number, lon: number): Promise<AvailableDatesForResponse> {
+    return apiGet<AvailableDatesForResponse>("/available-dates-for", { lat, lon });
+}
+
+export type HealthResponse = { ok?: boolean };
+
+export async function apiHealth(): Promise<HealthResponse> {
+    return apiGet<HealthResponse>("/health");
+}
+
+function sleep(ms: number) {
+    return new Promise((r) => setTimeout(r, ms));
+}
+
+// tries /health until it responds or we give up
+export async function warmBackend(opts?: {
+    maxMs?: number;
+    intervalMs?: number;
+    onTick?: (info: { attempts: number; elapsedMs: number }) => void;
+}): Promise<void> {
+    const maxMs = opts?.maxMs ?? 45_000;
+    const intervalMs = opts?.intervalMs ?? 1200;
+
+    const start = Date.now();
+    let attempts = 0;
+
+    while (Date.now() - start < maxMs) {
+        attempts++;
+        opts?.onTick?.({ attempts, elapsedMs: Date.now() - start });
+
+        try {
+            await apiHealth();
+            return;
+        } catch {
+            // ignore and retry
+        }
+
+        await sleep(intervalMs);
+    }
+
+    throw new Error("backend is taking too long to wake up. try again in a moment.");
 }

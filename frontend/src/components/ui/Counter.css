@@ -1,0 +1,57 @@
+.rb-counter {
+    position: relative;
+    display: inline-flex;
+    color: #e8f4ff;
+}
+
+.rb-counter__digits {
+    display: flex;
+    align-items: center;
+    gap: var(--counter-gap);
+    overflow: hidden;
+    border-radius: 10px;
+    padding: 0 0.2rem;
+    font-size: var(--counter-font-size);
+    line-height: 1;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+}
+
+.rb-counter__digit {
+    position: relative;
+    width: 1ch;
+    overflow: hidden;
+}
+
+.rb-counter__number {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rb-counter__decimal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rb-counter__fade {
+    pointer-events: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 10px;
+}
+
+.rb-counter__fade--top {
+    top: 0;
+    background: linear-gradient(180deg, rgba(7, 26, 46, 0.75), rgba(7, 26, 46, 0));
+}
+
+.rb-counter__fade--bottom {
+    bottom: 0;
+    background: linear-gradient(0deg, rgba(7, 26, 46, 0.75), rgba(7, 26, 46, 0));
+}

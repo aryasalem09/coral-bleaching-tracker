@@ -1,0 +1,140 @@
+.rb-stepper-outer {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+}
+
+.rb-stepper-card {
+    width: 100%;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(232, 244, 255, 0.16);
+    background: linear-gradient(145deg, rgba(10, 37, 60, 0.84), rgba(6, 22, 38, 0.9));
+    box-shadow: 0 18px 38px rgba(3, 11, 24, 0.5);
+}
+
+.rb-stepper-indicator-row {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    padding: 1.1rem 1.35rem;
+}
+
+.rb-stepper-indicator-group {
+    display: inline-flex;
+    align-items: center;
+    flex: 1;
+}
+
+.rb-stepper-indicator-group:last-child {
+    flex: 0 0 auto;
+}
+
+.rb-stepper-indicator {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.rb-stepper-indicator-inner {
+    display: flex;
+    height: 1.95rem;
+    width: 1.95rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-weight: 700;
+    box-shadow: 0 0 0 1px rgba(193, 228, 255, 0.13);
+}
+
+.rb-stepper-active-dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    background: #041423;
+}
+
+.rb-stepper-number {
+    font-size: 0.82rem;
+}
+
+.rb-stepper-connector {
+    position: relative;
+    margin: 0 0.5rem;
+    height: 0.16rem;
+    flex: 1;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(116, 174, 208, 0.22);
+}
+
+.rb-stepper-connector-inner {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+}
+
+.rb-stepper-check-icon {
+    width: 1rem;
+    height: 1rem;
+    color: #041423;
+}
+
+.rb-stepper-content {
+    position: relative;
+    overflow: hidden;
+}
+
+.rb-stepper-step {
+    padding: 0.65rem 1.35rem 0.25rem;
+}
+
+.rb-stepper-footer {
+    padding: 0.5rem 1.35rem 1.15rem;
+}
+
+.rb-stepper-nav {
+    margin-top: 1.8rem;
+    display: flex;
+}
+
+.rb-stepper-nav--spread {
+    justify-content: space-between;
+}
+
+.rb-stepper-nav--end {
+    justify-content: flex-end;
+}
+
+.rb-stepper-back {
+    border: 1px solid rgba(232, 244, 255, 0.2);
+    border-radius: 10px;
+    padding: 0.38rem 0.7rem;
+    color: rgba(232, 244, 255, 0.84);
+    background: rgba(10, 42, 68, 0.65);
+    transition: all 180ms ease;
+}
+
+.rb-stepper-back:hover {
+    border-color: rgba(232, 244, 255, 0.34);
+    background: rgba(16, 56, 87, 0.74);
+}
+
+.rb-stepper-next {
+    border: 1px solid rgba(95, 211, 211, 0.6);
+    border-radius: 999px;
+    padding: 0.42rem 0.98rem;
+    color: #03111d;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    background: linear-gradient(105deg, #1fa6a6, #68c9ef);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.rb-stepper-next:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(40, 175, 197, 0.3);
+}
