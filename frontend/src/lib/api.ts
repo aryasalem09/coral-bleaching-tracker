@@ -63,6 +63,10 @@ export type ReefPointsResponse = {
     points: ReefPointResponse[];
 };
 
+export type ReefPointsFallbackResponse = {
+    points: ReefPointResponse[];
+};
+
 export type EstimateFromFeaturesRequest = {
     lat: number;
     lon: number;
@@ -258,6 +262,14 @@ export function getReefPoints(
     return apiGet<ReefPointsResponse>("/reef-points", { south, west, north, east, limit }, options);
 }
 
+export async function getFallbackReefPoints(options?: RequestOptions): Promise<ReefPointsFallbackResponse> {
+    const res = await fetch("/reef-points-fallback.json", {
+        method: "GET",
+        signal: options?.signal,
+    });
+    return parseJson<ReefPointsFallbackResponse>(res);
+}
+
 export function estimateFromFeatures(
     payload: EstimateFromFeaturesRequest,
     options?: RequestOptions
@@ -280,6 +292,7 @@ export const apiHealth = health;
 export const apiEstimateFromFeatures = estimateFromFeatures;
 export const apiSensitivity = sensitivity;
 export const apiReefPoints = getReefPoints;
+export const apiFallbackReefPoints = getFallbackReefPoints;
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));

@@ -15,6 +15,7 @@ import {
     apiAvailableDatesFor,
     apiEstimate,
     apiEstimateFromFeatures,
+    apiFallbackReefPoints,
     apiReefPoints,
     apiSensitivity,
 } from "../../lib/api";
@@ -434,6 +435,8 @@ export default function MapEstimateLeaflet({
     const availableDatesCacheRef = useRef<Map<string, AvailableDatesForResponse>>(new Map());
     const estimateCacheRef = useRef<Map<string, EstimateResponse>>(new Map());
     const historyCacheRef = useRef<Map<string, HistoryPoint[]>>(new Map());
+    const fallbackReefsRef = useRef<ReefPoint[] | null>(null);
+    const usingFallbackReefsRef = useRef(false);
 
     const selectedDate = useMemo(() => {
         if (availableDates.length === 0) return dateStr;
@@ -458,24 +461,62 @@ export default function MapEstimateLeaflet({
         setMapZoom(viewport.zoom);
 
         try {
-            const response = await apiReefPoints(
-                viewport.south,
-                viewport.west,
-                viewport.north,
-                viewport.east,
-                viewportLimitForZoom(viewport.zoom)
-            );
+            let response = null;
+
+            if (!usingFallbackReefsRef.current) {
+                try {
+                    response = await apiReefPoints(
+                        viewport.south,
+                        viewport.west,
+                        viewport.north,
+                        viewport.east,
+                        viewportLimitForZoom(viewport.zoom)
+                    );
+                } catch (error: unknown) {
+                    if (!(error instanceof ApiError) || error.status !== 404) {
+                        throw error;
+                    }
+                    usingFallbackReefsRef.current = true;
+                }
+            }
 
             if (viewportRequestRef.current !== requestId) return;
 
-            setVisibleReefs(
-                response.points.map((point) => ({
+            if (response) {
+                setVisibleReefs(
+                    response.points.map((point) => ({
+                        lat: point.lat,
+                        lon: point.lon,
+                        reefKey: buildReefKey(point.lat, point.lon),
+                    }))
+                );
+                setVisibleReefMeta({ total: response.total, returned: response.returned });
+                return;
+            }
+
+            if (!fallbackReefsRef.current) {
+                const fallbackResponse = await apiFallbackReefPoints();
+                fallbackReefsRef.current = fallbackResponse.points.map((point) => ({
                     lat: point.lat,
                     lon: point.lon,
                     reefKey: buildReefKey(point.lat, point.lon),
-                }))
-            );
-            setVisibleReefMeta({ total: response.total, returned: response.returned });
+                }));
+            }
+
+            if (viewportRequestRef.current !== requestId) return;
+
+            const viewportReefs = fallbackReefsRef.current.filter((reef) => {
+                const withinLat = reef.lat >= viewport.south && reef.lat <= viewport.north;
+                const withinLon =
+                    viewport.east >= viewport.west
+                        ? reef.lon >= viewport.west && reef.lon <= viewport.east
+                        : reef.lon >= viewport.west || reef.lon <= viewport.east;
+                return withinLat && withinLon;
+            });
+            const cappedReefs = viewportReefs.slice(0, viewportLimitForZoom(viewport.zoom));
+
+            setVisibleReefs(cappedReefs);
+            setVisibleReefMeta({ total: viewportReefs.length, returned: cappedReefs.length });
         } catch (error: unknown) {
             if (viewportRequestRef.current !== requestId || isAbortError(error)) return;
             setError(toFriendlyError(error));
