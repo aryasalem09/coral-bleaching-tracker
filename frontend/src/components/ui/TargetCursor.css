@@ -1,13 +1,17 @@
-.target-cursor-wrapper {
+.target-cursor {
     position: fixed;
     top: 0;
     left: 0;
-    width: 0;
-    height: 0;
+    z-index: 5000;
     pointer-events: none;
-    z-index: 4000;
-    mix-blend-mode: screen;
-    transform: translate(-50%, -50%);
+    opacity: 0;
+    transform: translate3d(-100px, -100px, 0);
+    transition: opacity 140ms ease;
+    mix-blend-mode: multiply;
+}
+
+.target-cursor[data-visible="true"] {
+    opacity: 1;
 }
 
 body.target-cursor-active,
@@ -17,49 +21,48 @@ body.target-cursor-active *::after {
     cursor: none !important;
 }
 
-.target-cursor-dot {
+.target-cursor__dot {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 6px;
-    height: 6px;
-    background: rgba(200, 245, 255, 0.96);
-    border-radius: 50%;
+    top: 0;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(14, 159, 140, 0.92);
+    box-shadow: 0 0 0 5px rgba(14, 159, 140, 0.12);
     transform: translate(-50%, -50%);
-    box-shadow: 0 0 10px rgba(140, 224, 246, 0.9);
-    will-change: transform;
+    transition: transform 120ms ease;
 }
 
-.target-cursor-corner {
+.target-cursor__frame {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 13px;
-    height: 13px;
-    border: 2px solid rgba(201, 244, 255, 0.95);
-    will-change: transform;
+    top: 0;
+    left: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 18px;
+    border: 2px solid rgba(14, 159, 140, 0.72);
+    background:
+        linear-gradient(135deg, rgba(14, 159, 140, 0.06), rgba(242, 165, 65, 0.08));
+    transform: translate3d(-22px, -22px, 0);
+    transition:
+        width 180ms ease,
+        height 180ms ease,
+        border-color 180ms ease,
+        background-color 180ms ease,
+        border-radius 180ms ease;
 }
 
-.corner-tl {
-    transform: translate(-150%, -150%);
-    border-right: none;
-    border-bottom: none;
+.target-cursor[data-hover="true"] .target-cursor__frame {
+    border-color: rgba(242, 165, 65, 0.9);
+    background:
+        linear-gradient(135deg, rgba(242, 165, 65, 0.14), rgba(14, 159, 140, 0.08));
 }
 
-.corner-tr {
-    transform: translate(50%, -150%);
-    border-left: none;
-    border-bottom: none;
-}
-
-.corner-br {
-    transform: translate(50%, 50%);
-    border-left: none;
-    border-top: none;
-}
-
-.corner-bl {
-    transform: translate(-150%, 50%);
-    border-right: none;
-    border-top: none;
+@media (prefers-reduced-motion: reduce) {
+    .target-cursor,
+    .target-cursor__dot,
+    .target-cursor__frame {
+        transition: none;
+    }
 }

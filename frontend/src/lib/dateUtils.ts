@@ -2,12 +2,12 @@ function toUtcMidnightMs(isoDate: string): number {
     return Date.parse(`${isoDate}T00:00:00Z`);
 }
 
-// Assumes `dates` is sorted ascending (ISO yyyy-mm-dd).
-export function findNearestDateIndex(dates: string[], targetIso: string): number {
+// dates must be sorted ascending (yyyy-mm-dd)
+export function findNearestDateIndex(dates: string[], targetISO: string): number {
     if (dates.length === 0) return -1;
     if (dates.length === 1) return 0;
 
-    const targetMs = toUtcMidnightMs(targetIso);
+    const targetMs = toUtcMidnightMs(targetISO);
     if (!Number.isFinite(targetMs)) return 0;
 
     let low = 0;

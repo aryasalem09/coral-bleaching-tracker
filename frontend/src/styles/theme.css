@@ -1,29 +1,38 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Outfit:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap");
 
 :root {
-    --ocean-deep-navy: #071a2e;
-    --ocean-blue: #0e3a5f;
-    --ocean-teal: #1fa6a6;
-    --ocean-coral: #ff6b6b;
-    --text-soft-white: #e8f4ff;
-    --text-muted: rgba(232, 244, 255, 0.7);
-    --status-ready: #3ddc97;
-    --status-down: #ff6b6b;
-    --status-unknown: #8f9eac;
-    --risk-yellow: #f7d26a;
-    --risk-orange: #ff9f66;
-    --glass-border: rgba(232, 244, 255, 0.16);
-    --glass-bg: rgba(8, 27, 46, 0.56);
-    --surface-elevated: rgba(8, 33, 56, 0.72);
-    --radius-lg: 18px;
-    --radius-xl: 26px;
-    --shadow-soft: 0 20px 46px rgba(2, 11, 22, 0.4);
-    --shadow-glow: 0 0 0 1px rgba(115, 196, 255, 0.18), 0 10px 24px rgba(4, 20, 38, 0.44);
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    color: #0f172a;
+    background:
+        radial-gradient(circle at top left, rgba(14, 159, 140, 0.18), transparent 32%),
+        radial-gradient(circle at top right, rgba(242, 165, 65, 0.2), transparent 34%),
+        linear-gradient(180deg, #f7fbfa 0%, #eef5f4 100%);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    --bg: #f5f8f7;
+    --panel: rgba(255, 255, 255, 0.78);
+    --panel-strong: rgba(255, 255, 255, 0.92);
+    --line: rgba(15, 23, 42, 0.1);
+    --line-strong: rgba(15, 23, 42, 0.16);
+    --text: #0f172a;
+    --muted: #4f6377;
+    --teal: #0e9f8c;
+    --teal-deep: #0a6a61;
+    --amber: #f2a541;
+    --coral: #d85d41;
+    --sand: #f2eee4;
+    --shadow: 0 24px 80px rgba(10, 35, 48, 0.12);
+    --radius-xl: 32px;
+    --radius-lg: 22px;
+    --radius-md: 16px;
 }
 
-*,
-*::before,
-*::after {
+* {
     box-sizing: border-box;
 }
 
@@ -35,29 +44,20 @@ body,
 
 body {
     margin: 0;
-    background:
-        radial-gradient(circle at 8% -10%, rgba(31, 166, 166, 0.28) 0%, rgba(31, 166, 166, 0) 44%),
-        radial-gradient(circle at 90% 10%, rgba(143, 217, 255, 0.18) 0%, rgba(143, 217, 255, 0) 45%),
-        linear-gradient(160deg, #071a2e 0%, #0e3a5f 52%, #06253e 100%);
-    color: var(--text-soft-white);
-    font-family: "Outfit", "Segoe UI", sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
+    min-width: 320px;
+    min-height: 100vh;
+    color: var(--text);
+    background-color: var(--bg);
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-    margin: 0;
-    font-weight: 700;
+button,
+input,
+select {
+    font: inherit;
 }
 
-p {
-    margin: 0;
+button {
+    border: 0;
 }
 
 a {
@@ -65,16 +65,23 @@ a {
     text-decoration: none;
 }
 
-button,
-input {
-    font: inherit;
+img,
+svg {
+    display: block;
+    max-width: 100%;
 }
 
-.glass-panel {
-    background: linear-gradient(145deg, rgba(14, 58, 95, 0.45), rgba(7, 26, 46, 0.62));
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-soft);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+h1,
+h2,
+h3,
+h4,
+p {
+    margin: 0;
+}
+
+h1,
+h2,
+h3 {
+    font-family: "Fraunces", Georgia, serif;
+    letter-spacing: -0.03em;
 }

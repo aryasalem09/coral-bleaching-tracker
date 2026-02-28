@@ -1,123 +1,117 @@
-import { useEffect } from "react";
-import Stepper, { Step } from "./Stepper";
+import { useEffect, useState } from "react";
 
 type TutorialModalProps = {
     open: boolean;
     onClose: () => void;
 };
 
-const BODY_LOCK_COUNT_KEY = "cbtLockCount";
-const BODY_PREV_OVERFLOW_KEY = "cbtPrevOverflow";
-
-function lockBodyScroll() {
-    const body = document.body;
-    const currentCount = Number(body.dataset[BODY_LOCK_COUNT_KEY] ?? "0");
-    if (!Number.isFinite(currentCount) || currentCount <= 0) {
-        body.dataset[BODY_PREV_OVERFLOW_KEY] = body.style.overflow;
-        body.style.overflow = "hidden";
-        body.dataset[BODY_LOCK_COUNT_KEY] = "1";
-        return;
-    }
-    body.dataset[BODY_LOCK_COUNT_KEY] = String(currentCount + 1);
-}
-
-function unlockBodyScroll() {
-    const body = document.body;
-    const currentCount = Number(body.dataset[BODY_LOCK_COUNT_KEY] ?? "0");
-    if (!Number.isFinite(currentCount) || currentCount <= 1) {
-        body.style.overflow = body.dataset[BODY_PREV_OVERFLOW_KEY] ?? "";
-        delete body.dataset[BODY_LOCK_COUNT_KEY];
-        delete body.dataset[BODY_PREV_OVERFLOW_KEY];
-        return;
-    }
-    body.dataset[BODY_LOCK_COUNT_KEY] = String(currentCount - 1);
-}
+const STEPS = [
+    {
+        title: "Explore the map first",
+        body: "The map is the main interface. Pan, zoom, and look for the highlighted reef circles before opening any detail.",
+    },
+    {
+        title: "Click reef circles only",
+        body: "Each circle is a real reef point. Clicking the circle avoids the off-reef snapping behavior and opens a reef-specific dashboard.",
+    },
+    {
+        title: "Use the dashboard",
+        body: "After selecting a reef, switch between overview, timeline, and scenario tabs to inspect risk, scrub dates, and test stress changes.",
+    },
+    {
+        title: "Replay the walkthrough anytime",
+        body: "Use the Tutorial button in the top bar whenever you want the guided walkthrough again.",
+    },
+];
 
 export default function TutorialModal({ open, onClose }: TutorialModalProps) {
+    const [stepIndex, setStepIndex] = useState(0);
+
     useEffect(() => {
         if (!open) return;
 
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
         const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                onClose();
-            }
+            if (event.key === "Escape") onClose();
+            if (event.key === "ArrowRight") setStepIndex((current) => Math.min(current + 1, STEPS.length - 1));
+            if (event.key === "ArrowLeft") setStepIndex((current) => Math.max(current - 1, 0));
         };
 
-        lockBodyScroll();
         window.addEventListener("keydown", onKeyDown);
-
         return () => {
-            unlockBodyScroll();
+            document.body.style.overflow = previousOverflow;
             window.removeEventListener("keydown", onKeyDown);
+            setStepIndex(0);
         };
-    }, [open, onClose]);
+    }, [onClose, open]);
 
     if (!open) return null;
 
+    const step = STEPS[stepIndex];
+    const isLastStep = stepIndex === STEPS.length - 1;
+
     return (
-        <div className="modal-backdrop" onClick={onClose}>
-            <div
-                className="tutorial-modal glass-panel"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="tutorial-modal-title"
-                onClick={(event) => event.stopPropagation()}
-            >
-                <div className="tutorial-modal__header">
-                    <h2 id="tutorial-modal-title">Quick Tutorial</h2>
-                    <button type="button" className="help-modal__close cursor-target" onClick={onClose}>
+        <div className="tutorial-overlay" onClick={onClose}>
+            <div className="tutorial-dialog glass-panel" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+                <div className="tutorial-dialog__header">
+                    <div>
+                        <p className="tutorial-dialog__eyebrow">Quick tour</p>
+                        <h2>{step.title}</h2>
+                    </div>
+                    <button type="button" className="ghost-button" onClick={onClose}>
                         Close
                     </button>
                 </div>
 
-                <Stepper
-                    nextButtonText="Next"
-                    backButtonText="Back"
-                    stepCircleContainerClassName="tutorial-stepper-card"
-                    contentClassName="tutorial-stepper-content"
-                    footerClassName="tutorial-stepper-footer"
-                >
-                    <Step>
-                        <article className="tutorial-step">
-                            <h3>1. Welcome</h3>
-                            <p>
-                                This dashboard estimates coral bleaching risk from NOAA Degree Heating Weeks and
-                                HotSpot thermal stress metrics.
-                            </p>
-                        </article>
-                    </Step>
+                <p className="tutorial-dialog__body">{step.body}</p>
 
-                    <Step>
-                        <article className="tutorial-step">
-                            <h3>2. Pick A Date + Click Reef</h3>
-                            <p>Select a historical date, then click any reef area on the map to run an estimate.</p>
-                            <div className="tutorial-step__placeholder" aria-hidden="true">
-                                <span className="tutorial-step__placeholder-dot" />
-                                <span>Map interaction preview</span>
-                            </div>
-                        </article>
-                    </Step>
+                <div className="tutorial-progress" aria-label="Tutorial progress">
+                    {STEPS.map((item, index) => (
+                        <button
+                            key={item.title}
+                            type="button"
+                            className={index === stepIndex ? "tutorial-progress__dot tutorial-progress__dot--active" : "tutorial-progress__dot"}
+                            onClick={() => setStepIndex(index)}
+                            aria-label={`Go to step ${index + 1}`}
+                        />
+                    ))}
+                </div>
 
-                    <Step>
-                        <article className="tutorial-step">
-                            <h3>3. Understand Results</h3>
-                            <p>
-                                Review the risk probability badge, plus DHW and HotSpot values, then inspect the risk
-                                bar for quick severity context.
-                            </p>
-                        </article>
-                    </Step>
+                <div className="tutorial-cards">
+                    <article className="tutorial-card tutorial-card--active">
+                        <span>{`0${stepIndex + 1}`}</span>
+                        <strong>{step.title}</strong>
+                    </article>
+                    <article className="tutorial-card">
+                        <span>Map</span>
+                        <strong>Choose circles, not empty ocean.</strong>
+                    </article>
+                    <article className="tutorial-card">
+                        <span>Dashboard</span>
+                        <strong>Overview, timeline, scenario.</strong>
+                    </article>
+                </div>
 
-                    <Step>
-                        <article className="tutorial-step">
-                            <h3>4. Tips</h3>
-                            <p>
-                                If a click is off-reef, the system snaps to the nearest valid reef cell. First request
-                                may take longer while the Render backend wakes.
-                            </p>
-                        </article>
-                    </Step>
-                </Stepper>
+                <div className="tutorial-dialog__footer">
+                    <button type="button" className="ghost-button" onClick={() => setStepIndex((current) => Math.max(current - 1, 0))} disabled={stepIndex === 0}>
+                        Back
+                    </button>
+                    <button
+                        type="button"
+                        className="ghost-button ghost-button--accent"
+                        onClick={() => {
+                            if (isLastStep) {
+                                onClose();
+                                return;
+                            }
+                            setStepIndex((current) => Math.min(current + 1, STEPS.length - 1));
+                        }}
+                    >
+                        {isLastStep ? "Start exploring" : "Next"}
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -125,62 +125,62 @@ export default function Navbar({
 
             {isMenuOpen
                 ? createPortal(
-                      <div
-                          id="top-nav-menu"
-                          ref={menuPanelRef}
-                          role="menu"
-                          aria-label="Navigation menu"
-                          className="nav-menu glass-panel"
-                          style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
-                      >
-                          <button
-                              type="button"
-                              role="menuitem"
-                              className="nav-menu__item cursor-target"
-                              onClick={() => runAndClose(onHelpClick)}
-                          >
-                              Help
-                          </button>
-                          <button
-                              type="button"
-                              role="menuitem"
-                              className="nav-menu__item cursor-target"
-                              onClick={() => runAndClose(onTutorialClick)}
-                          >
-                              Tutorial
-                          </button>
-                          <button
-                              type="button"
-                              role="menuitem"
-                              className="nav-menu__item cursor-target"
-                              onClick={() => runAndClose(onAboutMetricsClick)}
-                          >
-                              About Metrics
-                          </button>
-                          <button
-                              type="button"
-                              role="menuitem"
-                              className="nav-menu__item cursor-target"
-                              disabled={!canWakeServer}
-                              onClick={() => runAndClose(onWakeServerClick)}
-                          >
-                              Wake server
-                          </button>
-                          {githubUrl ? (
-                              <a
-                                  role="menuitem"
-                                  className="nav-menu__item cursor-target"
-                                  href={githubUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={() => setMenuOpen(false)}
-                              >
-                                  GitHub
-                              </a>
-                          ) : null}
-                      </div>,
-                      document.body
-                  )
+                    <div
+                        id="top-nav-menu"
+                        ref={menuPanelRef}
+                        role="menu"
+                        aria-label="Navigation menu"
+                        className="nav-menu glass-panel"
+                        style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
+                    >
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="nav-menu__item cursor-target"
+                            onClick={() => runAndClose(onHelpClick)}
+                        >
+                            Help
+                        </button>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="nav-menu__item cursor-target"
+                            onClick={() => runAndClose(onTutorialClick)}
+                        >
+                            Tutorial
+                        </button>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="nav-menu__item cursor-target"
+                            onClick={() => runAndClose(onAboutMetricsClick)}
+                        >
+                            About Metrics
+                        </button>
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="nav-menu__item cursor-target"
+                            disabled={!canWakeServer}
+                            onClick={() => runAndClose(onWakeServerClick)}
+                        >
+                            Wake server
+                        </button>
+                        {githubUrl ? (
+                            <a
+                                role="menuitem"
+                                className="nav-menu__item cursor-target"
+                                href={githubUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={() => setMenuOpen(false)}
+                            >
+                                GitHub
+                            </a>
+                        ) : null}
+                    </div>,
+                    document.body
+                )
                 : null}
         </header>
     );

@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import MapEstimateLeaflet from "./components/map/MapEstimateLeaflet";
-import HelpModal from "./components/ui/HelpModal";
-import HeroIntro from "./components/ui/HeroIntro";
-import Navbar from "./components/ui/Navbar";
 import TargetCursor from "./components/ui/TargetCursor";
 import TutorialModal from "./components/ui/TutorialModal";
-import WarmupBanner from "./components/ui/WarmupBanner";
 import { warmBackend } from "./lib/api";
 import type { ServerStatus } from "./types/server";
 
@@ -13,14 +9,28 @@ const WARMUP_TIMEOUT_MS = 45_000;
 const WARMUP_INTERVAL_MS = 1200;
 const SLOW_START_MESSAGE = "Server is slow to start. Please try again shortly.";
 const GITHUB_URL = "https://github.com/aryasalem09/coral-bleaching-tracker";
+const TUTORIAL_STORAGE_KEY = "cbt:tutorial-dismissed";
+
 let globalWarmupPromise: Promise<void> | null = null;
+
+function statusLabel(serverStatus: ServerStatus): string {
+    if (serverStatus === "ready") return "Live data ready";
+    if (serverStatus === "warming") return "Warming backend";
+    if (serverStatus === "down") return "Backend unavailable";
+    return "Checking service";
+}
 
 export default function App() {
     const [serverStatus, setServerStatus] = useState<ServerStatus>("unknown");
-    const [isWarmupBannerVisible, setWarmupBannerVisible] = useState(false);
+    const [isTutorialOpen, setTutorialOpen] = useState(() => {
+        try {
+            return window.localStorage.getItem(TUTORIAL_STORAGE_KEY) !== "1";
+        } catch {
+            return true;
+        }
+    });
+    const [isWarmupVisible, setWarmupVisible] = useState(false);
     const [warmupElapsedSeconds, setWarmupElapsedSeconds] = useState(0);
-    const [isHelpOpen, setHelpOpen] = useState(false);
-    const [isTutorialOpen, setTutorialOpen] = useState(false);
 
     const warmupPromiseRef = useRef<Promise<void> | null>(null);
     const warmupStartedAtRef = useRef<number | null>(null);
@@ -42,18 +52,14 @@ export default function App() {
             setWarmupElapsedSeconds(0);
         }
         warmupTimerRef.current = window.setInterval(() => {
-            if (!warmupStartedAtRef.current || !mountedRef.current) return;
-            const elapsed = Math.floor((Date.now() - warmupStartedAtRef.current) / 1000);
-            setWarmupElapsedSeconds(elapsed);
+            if (!mountedRef.current || !warmupStartedAtRef.current) return;
+            setWarmupElapsedSeconds(Math.floor((Date.now() - warmupStartedAtRef.current) / 1000));
         }, 250);
     }, [clearWarmupTimer]);
 
     const captureWarmupFinalSeconds = useCallback(() => {
-        if (!warmupStartedAtRef.current) return;
-        const elapsed = Math.floor((Date.now() - warmupStartedAtRef.current) / 1000);
-        if (mountedRef.current) {
-            setWarmupElapsedSeconds(elapsed);
-        }
+        if (!warmupStartedAtRef.current || !mountedRef.current) return;
+        setWarmupElapsedSeconds(Math.floor((Date.now() - warmupStartedAtRef.current) / 1000));
     }, []);
 
     const startWarmup = useCallback((): Promise<void> => {
@@ -63,7 +69,7 @@ export default function App() {
 
         if (mountedRef.current) {
             setServerStatus("warming");
-            setWarmupBannerVisible(true);
+            setWarmupVisible(true);
         }
         beginWarmupTimer();
 
@@ -82,7 +88,7 @@ export default function App() {
                 clearWarmupTimer();
                 if (mountedRef.current) {
                     setServerStatus("ready");
-                    setWarmupBannerVisible(false);
+                    setWarmupVisible(false);
                 }
             })
             .catch((error: unknown) => {
@@ -90,7 +96,7 @@ export default function App() {
                 clearWarmupTimer();
                 if (mountedRef.current) {
                     setServerStatus("down");
-                    setWarmupBannerVisible(false);
+                    setWarmupVisible(false);
                 }
                 throw error;
             })
@@ -103,16 +109,26 @@ export default function App() {
     }, [beginWarmupTimer, captureWarmupFinalSeconds, clearWarmupTimer]);
 
     useEffect(() => {
-        void startWarmup();
-    }, [startWarmup]);
-
-    useEffect(() => {
         mountedRef.current = true;
+        const timeoutId = window.setTimeout(() => {
+            void startWarmup();
+        }, 0);
+
         return () => {
+            window.clearTimeout(timeoutId);
             mountedRef.current = false;
             clearWarmupTimer();
         };
-    }, [clearWarmupTimer]);
+    }, [clearWarmupTimer, startWarmup]);
+
+    const closeTutorial = useCallback(() => {
+        setTutorialOpen(false);
+        try {
+            window.localStorage.setItem(TUTORIAL_STORAGE_KEY, "1");
+        } catch {
+            // ignore storage failures
+        }
+    }, []);
 
     const ensureBackendReady = useCallback(async () => {
         if (serverStatus === "ready") return;
@@ -142,50 +158,39 @@ export default function App() {
         }
     }, []);
 
-    const openAboutMetrics = useCallback(() => {
-        const aboutMetrics = document.getElementById("about-metrics");
-        if (!aboutMetrics) return;
-
-        window.dispatchEvent(new CustomEvent("cbt:open-about-metrics"));
-
-        const navHeight = document.querySelector<HTMLElement>(".top-nav")?.offsetHeight ?? 84;
-        const sectionTop = window.scrollY + aboutMetrics.getBoundingClientRect().top;
-        const targetTop = Math.max(0, sectionTop - navHeight - 20);
-
-        window.scrollTo({
-            top: targetTop,
-            behavior: "smooth",
-        });
-    }, []);
-
-    const wakeServer = useCallback(() => {
-        void startWarmup();
-    }, [startWarmup]);
-
     return (
         <div className="app-shell">
-            <TargetCursor spinDuration={2} hideDefaultCursor parallaxOn hoverDuration={0.2} />
-            <Navbar
-                serverStatus={serverStatus}
-                onHelpClick={() => setHelpOpen(true)}
-                onTutorialClick={() => setTutorialOpen(true)}
-                onAboutMetricsClick={openAboutMetrics}
-                onWakeServerClick={wakeServer}
-                githubUrl={GITHUB_URL}
-            />
-            <WarmupBanner visible={isWarmupBannerVisible} elapsedSeconds={warmupElapsedSeconds} />
-            <HelpModal open={isHelpOpen} onClose={() => setHelpOpen(false)} />
-            <TutorialModal open={isTutorialOpen} onClose={() => setTutorialOpen(false)} />
+            <TargetCursor hideDefaultCursor />
+            <TutorialModal open={isTutorialOpen} onClose={closeTutorial} />
 
-            <main className="dashboard-main">
-                <HeroIntro />
-                <MapEstimateLeaflet
-                    ensureBackendReady={ensureBackendReady}
-                    serverStatus={serverStatus}
-                    onServerReachable={markServerReady}
-                    onServerDown={markServerDown}
-                />
-            </main>
+            <header className="app-topbar">
+                <div className="app-topbar__brand">
+                    <p className="app-kicker">Coral Bleaching Tracker</p>
+                    <h1>Explore reefs through a map-first risk dashboard.</h1>
+                </div>
+
+                <div className="app-topbar__actions">
+                    <span className={`status-pill status-pill--${serverStatus}`}>{statusLabel(serverStatus)}</span>
+                    {isWarmupVisible ? (
+                        <span className="status-pill status-pill--warmup">Wake-up {warmupElapsedSeconds}s</span>
+                    ) : null}
+                    <button type="button" className="ghost-button" onClick={() => setTutorialOpen(true)}>
+                        Tutorial
+                    </button>
+                    <a className="ghost-button" href={GITHUB_URL} target="_blank" rel="noreferrer">
+                        GitHub
+                    </a>
+                </div>
+            </header>
+
+            <MapEstimateLeaflet
+                ensureBackendReady={ensureBackendReady}
+                serverStatus={serverStatus}
+                onServerReachable={markServerReady}
+                onServerDown={markServerDown}
+                onOpenTutorial={() => setTutorialOpen(true)}
+                warmupElapsedSeconds={warmupElapsedSeconds}
+            />
         </div>
     );
 }
