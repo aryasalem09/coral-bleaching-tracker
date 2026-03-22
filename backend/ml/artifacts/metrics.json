@@ -1,0 +1,85 @@
+{
+  "available": true,
+  "selected_model": "hist_gradient_boosting",
+  "candidate_results": {
+    "logistic_regression": {
+      "decision_threshold": 0.1,
+      "validation": {
+        "auroc": 0.651303906167144,
+        "pr_auc": 0.7575738430404295,
+        "f1": 0.7179697093737208,
+        "precision": 0.5676375404530745,
+        "recall": 0.9766146993318485,
+        "brier_score": 0.24770654334960437,
+        "positive_rate": 0.5719745222929936
+      },
+      "test": {
+        "auroc": 0.4857273391812866,
+        "pr_auc": 0.361544595928694,
+        "f1": 0.5123739688359303,
+        "precision": 0.3467741935483871,
+        "recall": 0.980701754385965,
+        "brier_score": 0.2592739702239279,
+        "positive_rate": 0.3505535055350554
+      }
+    },
+    "hist_gradient_boosting": {
+      "decision_threshold": 0.25,
+      "validation": {
+        "auroc": 0.809914268811645,
+        "pr_auc": 0.8588927895145252,
+        "f1": 0.7773546585427773,
+        "precision": 0.7144190387307513,
+        "recall": 0.8524498886414253,
+        "brier_score": 0.18584055344602693,
+        "positive_rate": 0.5719745222929936
+      },
+      "test": {
+        "auroc": 0.6415478801169591,
+        "pr_auc": 0.47134465740941583,
+        "f1": 0.527236045729657,
+        "precision": 0.42748091603053434,
+        "recall": 0.6877192982456141,
+        "brier_score": 0.2339372480459343,
+        "positive_rate": 0.3505535055350554
+      }
+    },
+    "climatology_baseline": {
+      "validation": {
+        "auroc": 0.5,
+        "pr_auc": 0.5719745222929936,
+        "f1": 0.7277147487844409,
+        "precision": 0.5719745222929936,
+        "recall": 1.0,
+        "brier_score": 0.24482127325586248,
+        "positive_rate": 0.5719745222929936
+      },
+      "test": {
+        "auroc": 0.5,
+        "pr_auc": 0.3505535055350554,
+        "f1": 0.5191256830601093,
+        "precision": 0.3505535055350554,
+        "recall": 1.0,
+        "brier_score": 0.2761335665928332,
+        "positive_rate": 0.3505535055350554
+      }
+    }
+  },
+  "split_overlap_summary": {
+    "train_validation_overlap_sites": 379,
+    "train_test_overlap_sites": 248,
+    "validation_test_overlap_sites": 456,
+    "test_only_new_sites": 383
+  },
+  "selected_model_additional_evaluation": {
+    "new_site_test": {
+      "auroc": 0.5394213629507748,
+      "pr_auc": 0.5220246057663765,
+      "f1": 0.5504,
+      "precision": 0.4648648648648649,
+      "recall": 0.6745098039215687,
+      "brier_score": 0.2931527784691866,
+      "positive_rate": 0.4713493530499076
+    }
+  }
+}

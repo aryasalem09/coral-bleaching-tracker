@@ -1,0 +1,22 @@
+{
+  "available": true,
+  "model_name": "hist_gradient_boosting",
+  "model_version": "2026.03.17",
+  "target_definition": "binary_bleaching_event",
+  "prediction_unit": "site-month",
+  "feature_columns": [
+    "latitude",
+    "longitude",
+    "distance_to_shore_km",
+    "turbidity",
+    "cyclone_frequency",
+    "depth_mean_m",
+    "hotspot_like",
+    "dhw_like",
+    "month_sin",
+    "month_cos",
+    "exposure"
+  ],
+  "validation_metric_used_for_selection": "pr_auc",
+  "decision_threshold": 0.25
+}

@@ -1,99 +1,170 @@
-export type EstimateRequest = {
-    lat: number;
-    lon: number;
-    date: string;
+export type RequestOptions = {
+    signal?: AbortSignal;
 };
 
-export type EstimateResponse = {
-    input_lat: number;
-    input_lon: number;
-    used_lat: number;
-    used_lon: number;
-    snapped: boolean;
-    snap_km: number;
-    date: string;
-    dhw: number;
-    hotspot: number;
-    risk_prob: number;
-    risk_flag: number;
-    mhw_category?: number | null;
-    mhw_label?: string | null;
+export type SummaryResponse = {
+    service: string;
+    version: string;
+    started_at: string;
+    model_ready: boolean;
+    live_noaa_dates_available: number;
+    latest_live_noaa_date: string | null;
+    live_date_source: string;
 };
 
-export type NearestReefResponse = {
-    lat: number;
-    lon: number;
-    distance_km: number;
+export type SitePoint = {
+    site_id: string;
+    display_name: string;
+    latitude: number;
+    longitude: number;
+    latest_observed_date: string | null;
+    observed_record_count: number;
+    observed_positive_count: number;
+    mean_label_quality_score: number;
 };
 
-export type AvailableDatesResponse = {
-    count: number;
-    min_date: string | null;
-    max_date: string | null;
-    source?: string;
-    dates: string[];
-};
-
-export type AvailableDatesForResponse = {
-    reef_key?: string;
-    lat: number;
-    lon: number;
-    count: number;
-    min_date?: string | null;
-    max_date?: string | null;
-    dates: string[];
-};
-
-export type HealthResponse = {
-    ok?: boolean;
-    available_dates?: number;
-    min_date?: string | null;
-    max_date?: string | null;
-    dates_source?: string;
-};
-
-export type ReefPointResponse = {
-    lat: number;
-    lon: number;
-};
-
-export type ReefPointsResponse = {
+export type SitesResponse = {
     total: number;
     returned: number;
-    points: ReefPointResponse[];
+    points: SitePoint[];
 };
 
-export type ReefPointsFallbackResponse = {
-    points: ReefPointResponse[];
+export type SiteMeta = {
+    site_id: string;
+    display_name: string;
+    latitude: number;
+    longitude: number;
+    ocean_name: string | null;
+    realm_name: string | null;
+    ecoregion_name: string | null;
+    country_name: string | null;
+    state_name: string | null;
+    city_town_name: string | null;
+    site_name: string | null;
+    distance_to_shore_km: number | null;
+    exposure: string | null;
+    turbidity: number | null;
+    cyclone_frequency: number | null;
+    depth_mean_m: number | null;
+    observed_record_count: number;
+    observed_positive_count: number;
+    latest_observed_date: string | null;
+    first_observed_date: string | null;
+    provenance_source_count: number;
+    provenance_sources: string[];
+    mean_label_quality_score: number;
 };
 
-export type EstimateFromFeaturesRequest = {
-    lat: number;
-    lon: number;
-    dhw: number;
+export type SiteDetailResponse = {
+    site: SiteMeta;
+    recommended_observed_date: string | null;
+    observed_dates: string[];
+};
+
+export type ObservationRecord = {
+    date: string;
+    observed_percent_bleaching: number | null;
+    observed_severity_category: string | null;
+    target_bleaching_event: number | null;
+    label_quality_score: number;
+    is_direct_observation: boolean;
+    is_derived_label: boolean;
+    has_conflict_history: boolean;
+    sample_row_count: number;
+    source_count: number;
+    recommended_for_modeling: boolean;
+    provenance_sources: string[];
+};
+
+export type ObservationsResponse = {
+    site_id: string;
+    display_name: string;
+    recommended_date: string | null;
+    records: ObservationRecord[];
+};
+
+export type RiskInfoResponse = {
+    layer_name: string;
+    definition: string;
+    fallback_behavior: string;
+    thresholds: Array<{
+        category: string;
+        min_score: number;
+        min_hotspot: number;
+        min_dhw: number;
+        color: string;
+    }>;
+};
+
+export type RiskScoreResponse = {
+    site_id: string;
+    display_name: string;
+    requested_date: string | null;
+    used_date: string;
+    mode: string;
     hotspot: number;
-};
-
-export type EstimateFromFeaturesResponse = {
-    risk_prob: number;
-    risk_flag: number;
-};
-
-export type SensitivityRequest = {
-    lat: number;
-    lon: number;
     dhw: number;
-    hotspot: number;
-    dhw_step?: number;
-    hotspot_step?: number;
+    category: string;
+    score: number;
+    color: string;
+    explanation: string;
+    used_latitude: number;
+    used_longitude: number;
+    snap_km: number;
+    warnings: string[];
 };
 
-export type SensitivityResponse = {
-    base: number;
-    dhw_step: number;
-    hotspot_step: number;
-    delta_dhw: number;
-    delta_hotspot: number;
+export type PredictionResponse = {
+    available: boolean;
+    site_id?: string;
+    display_name?: string;
+    requested_date?: string | null;
+    used_date?: string;
+    mode?: string;
+    predicted_event?: boolean;
+    probability?: number;
+    threshold?: number;
+    model_version?: string;
+    target_definition?: string;
+    prediction_unit?: string;
+    input_feature_window?: string;
+    data_quality_warning?: string | null;
+    coverage_warning?: string | null;
+    message?: string;
+    features_used?: Record<string, unknown>;
+};
+
+export type ModelInfoResponse = {
+    available: boolean;
+    model_name?: string;
+    model_version?: string;
+    target_definition?: string;
+    prediction_unit?: string;
+    feature_columns?: string[];
+    validation_metric_used_for_selection?: string;
+    decision_threshold?: number;
+};
+
+export type ModelMetricsResponse = {
+    available: boolean;
+    selected_model?: string;
+    candidate_results?: Record<
+        string,
+        {
+            validation: Record<string, number>;
+            test: Record<string, number>;
+        }
+    >;
+    split_overlap_summary?: Record<string, number>;
+    selected_model_additional_evaluation?: Record<string, Record<string, number> | null>;
+};
+
+export type SiteAnalysisRequest = {
+    site_id?: string;
+    lat?: number;
+    lon?: number;
+    date?: string;
+    prefer_live?: boolean;
 };
 
 export class ApiError extends Error {
@@ -108,14 +179,9 @@ export class ApiError extends Error {
     }
 }
 
-export type RequestOptions = {
-    signal?: AbortSignal;
-};
-
-const rawBase = String(import.meta.env.VITE_API_BASE_URL ?? "").trim();
-if (!rawBase) {
-    throw new Error("Missing VITE_API_BASE_URL. Set it to your backend URL.");
-}
+const rawBase = String(
+    import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://127.0.0.1:8000" : window.location.origin)
+).trim();
 
 const normalizedBase = rawBase.replace(/\/+$/, "");
 if (!/^https?:\/\//i.test(normalizedBase)) {
@@ -124,7 +190,7 @@ if (!/^https?:\/\//i.test(normalizedBase)) {
 
 export const API_BASE = normalizedBase;
 
-export function buildUrl(path: string): string {
+function buildUrl(path: string): string {
     const safePath = path.startsWith("/") ? path : `/${path}`;
     return `${API_BASE}${safePath}`;
 }
@@ -175,13 +241,7 @@ function extractErrorMessage(res: Response, text: string, payload: unknown): str
     }
 
     if (typeof payload === "string" && payload.trim()) {
-        const clipped = payload.trim().slice(0, 280);
-        return `${statusPrefix}: ${clipped}`;
-    }
-
-    if (text.trim()) {
-        const clipped = text.trim().slice(0, 280);
-        return `${statusPrefix}: ${clipped}`;
+        return `${statusPrefix}: ${payload.trim().slice(0, 280)}`;
     }
 
     return statusPrefix;
@@ -189,23 +249,13 @@ function extractErrorMessage(res: Response, text: string, payload: unknown): str
 
 async function parseJson<T>(res: Response): Promise<T> {
     const { text, payload } = await readResponsePayload(res);
-
     if (!res.ok) {
         throw new ApiError(res.status, extractErrorMessage(res, text, payload), payload);
     }
-
-    if (payload === null || typeof payload === "string") {
-        throw new ApiError(
-            res.status,
-            `API ${res.status} ${res.statusText}: expected JSON object response`,
-            payload
-        );
-    }
-
     return payload as T;
 }
 
-export async function apiGet<T>(
+async function apiGet<T>(
     path: string,
     params?: Record<string, string | number | boolean | undefined | null>,
     options?: RequestOptions
@@ -217,7 +267,7 @@ export async function apiGet<T>(
     return parseJson<T>(res);
 }
 
-export async function apiPost<T>(path: string, body: unknown, options?: RequestOptions): Promise<T> {
+async function apiPost<T>(path: string, body: unknown, options?: RequestOptions): Promise<T> {
     const res = await fetch(buildUrl(path), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -227,102 +277,78 @@ export async function apiPost<T>(path: string, body: unknown, options?: RequestO
     return parseJson<T>(res);
 }
 
-export function estimate(payload: EstimateRequest, options?: RequestOptions): Promise<EstimateResponse> {
-    return apiPost<EstimateResponse>("/estimate", payload, options);
+export function health(options?: RequestOptions): Promise<{ ok: boolean; service: string; started_at: string; version: string }> {
+    return apiGet("/health", undefined, options);
 }
 
-export function nearestReef(lat: number, lon: number, options?: RequestOptions): Promise<NearestReefResponse> {
-    return apiGet<NearestReefResponse>("/nearest-reef", { lat, lon }, options);
+export function getSummary(options?: RequestOptions): Promise<SummaryResponse> {
+    return apiGet("/api/summary", undefined, options);
 }
 
-export function getAvailableDates(options?: RequestOptions): Promise<AvailableDatesResponse> {
-    return apiGet<AvailableDatesResponse>("/available-dates", undefined, options);
-}
-
-export function getAvailableDatesFor(
-    lat: number,
-    lon: number,
-    options?: RequestOptions
-): Promise<AvailableDatesForResponse> {
-    return apiGet<AvailableDatesForResponse>("/available-dates-for", { lat, lon }, options);
-}
-
-export function health(options?: RequestOptions): Promise<HealthResponse> {
-    return apiGet<HealthResponse>("/health", undefined, options);
-}
-
-export function getReefPoints(
+export function getSites(
     south: number,
     west: number,
     north: number,
     east: number,
-    limit = 1800,
+    limit: number,
     options?: RequestOptions
-): Promise<ReefPointsResponse> {
-    return apiGet<ReefPointsResponse>("/reef-points", { south, west, north, east, limit }, options);
+): Promise<SitesResponse> {
+    return apiGet("/api/sites", { south, west, north, east, limit }, options);
 }
 
-export async function getFallbackReefPoints(options?: RequestOptions): Promise<ReefPointsFallbackResponse> {
-    const res = await fetch("/reef-points-fallback.json", {
-        method: "GET",
-        signal: options?.signal,
-    });
-    return parseJson<ReefPointsFallbackResponse>(res);
+export function getSiteDetail(siteId: string, options?: RequestOptions): Promise<SiteDetailResponse> {
+    return apiGet(`/api/site/${siteId}`, undefined, options);
 }
 
-export function estimateFromFeatures(
-    payload: EstimateFromFeaturesRequest,
-    options?: RequestOptions
-): Promise<EstimateFromFeaturesResponse> {
-    return apiPost<EstimateFromFeaturesResponse>("/estimate-from-features", payload, options);
+export function getSiteObservations(siteId: string, options?: RequestOptions): Promise<ObservationsResponse> {
+    return apiGet(`/api/site/${siteId}/observations`, undefined, options);
 }
 
-export function sensitivity(
-    payload: SensitivityRequest,
-    options?: RequestOptions
-): Promise<SensitivityResponse> {
-    return apiPost<SensitivityResponse>("/sensitivity", payload, options);
+export function getRiskInfo(options?: RequestOptions): Promise<RiskInfoResponse> {
+    return apiGet("/api/risk/info", undefined, options);
 }
 
-// backward-compatible exports
-export const apiEstimate = estimate;
-export const apiNearestReef = nearestReef;
-export const apiAvailableDatesFor = getAvailableDatesFor;
-export const apiHealth = health;
-export const apiEstimateFromFeatures = estimateFromFeatures;
-export const apiSensitivity = sensitivity;
-export const apiReefPoints = getReefPoints;
-export const apiFallbackReefPoints = getFallbackReefPoints;
+export function getRiskScore(payload: SiteAnalysisRequest, options?: RequestOptions): Promise<RiskScoreResponse> {
+    return apiPost("/api/risk/score", payload, options);
+}
+
+export function getModelInfo(options?: RequestOptions): Promise<ModelInfoResponse> {
+    return apiGet("/api/model/info", undefined, options);
+}
+
+export function getModelMetrics(options?: RequestOptions): Promise<ModelMetricsResponse> {
+    return apiGet("/api/model/metrics", undefined, options);
+}
+
+export function predictBleaching(payload: SiteAnalysisRequest, options?: RequestOptions): Promise<PredictionResponse> {
+    return apiPost("/api/predict", payload, options);
+}
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// tries /health until it responds or we give up
 export async function warmBackend(opts?: {
     maxMs?: number;
     intervalMs?: number;
     onTick?: (info: { attempts: number; elapsedMs: number }) => void;
 }): Promise<void> {
-    const maxMs = opts?.maxMs ?? 45_000;
-    const intervalMs = opts?.intervalMs ?? 1200;
-
+    const maxMs = opts?.maxMs ?? 30_000;
+    const intervalMs = opts?.intervalMs ?? 1_000;
     const startedAt = Date.now();
     let attempts = 0;
 
     while (Date.now() - startedAt < maxMs) {
         attempts += 1;
         opts?.onTick?.({ attempts, elapsedMs: Date.now() - startedAt });
-
         try {
             await health();
             return;
         } catch {
-            // ignore and retry
+            // keep polling until maxMs
         }
-
         await sleep(intervalMs);
     }
 
-    throw new Error("backend is taking too long to wake up. try again in a moment.");
+    throw new Error("Backend is taking too long to wake up. Try again shortly.");
 }

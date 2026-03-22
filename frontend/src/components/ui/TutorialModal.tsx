@@ -16,11 +16,11 @@ const STEPS = [
     },
     {
         title: "Use the dashboard",
-        body: "After selecting a reef, switch between overview, timeline, and scenario tabs to inspect risk, scrub dates, and test stress changes.",
+        body: "After selecting a reef, use the timeline and layer controls to compare observed bleaching, environmental stress, and supervised model output.",
     },
     {
         title: "Replay the walkthrough anytime",
-        body: "Use the Tutorial button in the top bar whenever you want the guided walkthrough again.",
+        body: "Reopen the guided walkthrough whenever this component is surfaced in the interface again.",
     },
 ];
 
@@ -90,7 +90,7 @@ export default function TutorialModal({ open, onClose }: TutorialModalProps) {
                     </article>
                     <article className="tutorial-card">
                         <span>Dashboard</span>
-                        <strong>Overview, timeline, scenario.</strong>
+                        <strong>Timeline and layer comparison.</strong>
                     </article>
                 </div>
 

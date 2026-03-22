@@ -86,13 +86,13 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
                     </section>
 
                     <section>
-                        <h3>3. Risk Probability</h3>
-                        <p>Model output between 0 and 1.</p>
+                        <h3>3. Model event probability</h3>
+                        <p>A supervised estimate between 0 and 1 for a binary bleaching event, not a confirmed outcome.</p>
                     </section>
 
                     <section>
                         <h3>4. Snap Distance</h3>
-                        <p>If you click off a reef, we snap to nearest valid reef grid cell.</p>
+                        <p>When NOAA live files are used, this reports how far the selected site was from the nearest valid ocean grid cell.</p>
                     </section>
                 </div>
             </div>

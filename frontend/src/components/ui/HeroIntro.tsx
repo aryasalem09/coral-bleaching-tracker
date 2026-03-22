@@ -17,15 +17,15 @@ const METRIC_ITEMS = [
     },
     {
         id: "metric-risk-probability",
-        title: "Risk Probability",
-        description: "Model output from 0 to 1 estimating bleaching risk likelihood at the selected point.",
-        whyMatters: "This provides a clear, comparable signal for prioritizing reef monitoring decisions.",
+        title: "Model Event Probability",
+        description: "Supervised model output from 0 to 1 estimating the chance of a site-month bleaching event.",
+        whyMatters: "This is useful only when it stays clearly separate from observed bleaching and transparent risk scoring.",
     },
     {
         id: "metric-snap-distance",
         title: "Snap Distance",
-        description: "Distance from your clicked point to the nearest valid reef grid cell used for analysis.",
-        whyMatters: "It confirms data quality and transparency when clicks land outside reef-supported cells.",
+        description: "Distance from the selected site to the nearest valid NOAA ocean grid cell used for live analysis.",
+        whyMatters: "It makes live-grid alignment visible instead of hiding how far the nearest usable ocean cell was from the reef site.",
     },
 ];
 
@@ -49,10 +49,10 @@ export default function HeroIntro() {
     return (
         <section className="hero-intro glass-panel">
             <div className="hero-intro__content">
-                <h2 className="hero-intro__title">Estimate Coral Bleaching Risk Worldwide</h2>
+                <h2 className="hero-intro__title">Explore observed bleaching, environmental stress, and model output worldwide</h2>
                 <p className="hero-intro__description">
-                    This tool estimates coral bleaching risk using NOAA Degree Heating Weeks (DHW) and HotSpot
-                    metrics. Click any reef location to analyze historical stress for a selected date.
+                    This tool separates survey-backed bleaching observations, thermal-stress outlooks, and supervised
+                    model output so those three ideas are never blurred together.
                 </p>
 
                 <div className="hero-intro__meta">

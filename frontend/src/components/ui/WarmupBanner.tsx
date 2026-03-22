@@ -11,7 +11,7 @@ export default function WarmupBanner({ visible, elapsedSeconds }: WarmupBannerPr
             aria-live="polite"
         >
             <span className="spinner" aria-hidden="true" />
-            <span>Waking up analysis server... ({elapsedSeconds}s)</span>
+            <span>Waking backend and checking health... ({elapsedSeconds}s)</span>
         </div>
     );
 }
