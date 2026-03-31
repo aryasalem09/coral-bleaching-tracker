@@ -7,6 +7,8 @@ export type SummaryResponse = {
     version: string;
     started_at: string;
     model_ready: boolean;
+    model_status: "ready" | "missing" | "invalid";
+    model_status_message: string;
     live_noaa_dates_available: number;
     latest_live_noaa_date: string | null;
     live_date_source: string;
@@ -225,7 +227,7 @@ async function readResponsePayload(res: Response): Promise<{ text: string; paylo
     }
 }
 
-function extractErrorMessage(res: Response, text: string, payload: unknown): string {
+function extractErrorMessage(res: Response, payload: unknown): string {
     const statusPrefix = `API ${res.status} ${res.statusText}`;
 
     if (payload && typeof payload === "object") {
@@ -248,11 +250,15 @@ function extractErrorMessage(res: Response, text: string, payload: unknown): str
 }
 
 async function parseJson<T>(res: Response): Promise<T> {
-    const { text, payload } = await readResponsePayload(res);
+    const responsePayload = await readResponsePayload(res);
     if (!res.ok) {
-        throw new ApiError(res.status, extractErrorMessage(res, text, payload), payload);
+        throw new ApiError(
+            res.status,
+            extractErrorMessage(res, responsePayload.payload),
+            responsePayload.payload
+        );
     }
-    return payload as T;
+    return responsePayload.payload as T;
 }
 
 async function apiGet<T>(

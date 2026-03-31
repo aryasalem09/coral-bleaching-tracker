@@ -29,18 +29,10 @@ export function useCapabilityTier() {
         const onMotionChange = () => setInferred(inferTier());
 
         window.addEventListener("resize", onResize);
-        if ("addEventListener" in media) {
-            media.addEventListener("change", onMotionChange);
-        } else {
-            media.addListener(onMotionChange);
-        }
+        media.addEventListener("change", onMotionChange);
         return () => {
             window.removeEventListener("resize", onResize);
-            if ("removeEventListener" in media) {
-                media.removeEventListener("change", onMotionChange);
-            } else {
-                media.removeListener(onMotionChange);
-            }
+            media.removeEventListener("change", onMotionChange);
         };
     }, []);
 

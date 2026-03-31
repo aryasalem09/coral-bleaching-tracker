@@ -13,6 +13,13 @@ function statusLabel(serverStatus: ServerStatus): string {
     return "Checking backend";
 }
 
+function modelStatusLabel(summary: SummaryResponse | null): string {
+    if (!summary) return "Checking model bundle";
+    if (summary.model_status === "ready") return "Model bundle ready";
+    if (summary.model_status === "invalid") return "Model bundle invalid";
+    return "Model bundle missing";
+}
+
 export default function App() {
     const [serverStatus, setServerStatus] = useState<ServerStatus>("unknown");
     const [summary, setSummary] = useState<SummaryResponse | null>(null);
@@ -60,11 +67,14 @@ export default function App() {
 
     useEffect(() => {
         mountedRef.current = true;
-        void ensureBackendReady().catch(() => {
-            if (mountedRef.current) setServerStatus("down");
-        });
+        const timer = window.setTimeout(() => {
+            void ensureBackendReady().catch(() => {
+                if (mountedRef.current) setServerStatus("down");
+            });
+        }, 0);
         return () => {
             mountedRef.current = false;
+            window.clearTimeout(timer);
         };
     }, [ensureBackendReady]);
 
@@ -86,8 +96,8 @@ export default function App() {
 
                 <div className="topbar-actions">
                     <div className={`status-pill status-pill--${serverStatus}`}>{statusLabel(serverStatus)}</div>
-                    <div className="status-pill status-pill--ghost">
-                        {summary?.model_ready ? "Model artifact ready" : "Model artifact missing"}
+                    <div className="status-pill status-pill--ghost" title={summary?.model_status_message}>
+                        {modelStatusLabel(summary)}
                     </div>
                     <a className="link-button" href={GITHUB_URL} target="_blank" rel="noreferrer">
                         GitHub

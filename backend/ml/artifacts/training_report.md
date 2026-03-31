@@ -1,7 +1,7 @@
 # Model Training Report
 
 Selected model: `hist_gradient_boosting`
-Model version: `2026.03.17`
+Model version: `2026.03.31`
 Climatology baseline probability: `0.571`
 Decision threshold: `0.25`
 

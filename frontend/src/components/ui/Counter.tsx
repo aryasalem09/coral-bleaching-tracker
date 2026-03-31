@@ -44,20 +44,10 @@ function NumberGlyph({ motionValue, digit, height }: NumberGlyphProps) {
 }
 
 type DigitColumnProps = {
-    place: PlaceValue;
-    value: number;
     height: number;
 };
 
-function DigitColumn({ place, value, height }: DigitColumnProps) {
-    if (place === ".") {
-        return (
-            <span className="rb-counter__decimal" style={{ height }}>
-                .
-            </span>
-        );
-    }
-
+function AnimatedDigitColumn({ place, value, height }: DigitColumnProps & { place: number; value: number }) {
     const steppedValue = Math.floor(value / place);
     const animatedValue = useSpring(steppedValue, { stiffness: 130, damping: 20, mass: 0.5 });
 
@@ -72,6 +62,18 @@ function DigitColumn({ place, value, height }: DigitColumnProps) {
             ))}
         </span>
     );
+}
+
+function DigitColumn({ place, value, height }: DigitColumnProps & { place: PlaceValue; value: number }) {
+    if (place === ".") {
+        return (
+            <span className="rb-counter__decimal" style={{ height }}>
+                .
+            </span>
+        );
+    }
+
+    return <AnimatedDigitColumn place={place} value={value} height={height} />;
 }
 
 function derivePlaces(value: number): PlaceValue[] {

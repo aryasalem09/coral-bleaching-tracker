@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+numpy
+pandas
+xarray
+pydantic
+requests
+scikit-learn
+joblib
+matplotlib
+seaborn
+
+# open .nc
+h5py
+h5netcdf
+netCDF4

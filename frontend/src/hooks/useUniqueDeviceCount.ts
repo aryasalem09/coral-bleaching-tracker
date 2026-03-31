@@ -20,6 +20,8 @@ export default function useUniqueDeviceCount(): number {
     useEffect(() => {
         if (typeof window === "undefined") return;
 
+        let cancelled = false;
+        let nextCount = 1;
         try {
             const storage = window.localStorage;
 
@@ -46,10 +48,21 @@ export default function useUniqueDeviceCount(): number {
                 storage.setItem(UNIQUE_DEVICES_KEY, "1");
             }
 
-            setUniqueDeviceCount(storedCount);
+            nextCount = storedCount;
         } catch {
-            setUniqueDeviceCount(1);
+            nextCount = 1;
         }
+
+        const frame = window.requestAnimationFrame(() => {
+            if (!cancelled) {
+                setUniqueDeviceCount(nextCount);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+            window.cancelAnimationFrame(frame);
+        };
     }, []);
 
     return uniqueDeviceCount;

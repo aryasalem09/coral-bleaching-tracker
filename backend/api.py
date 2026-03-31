@@ -11,8 +11,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 import pandas as pd
 from pydantic import BaseModel
 
-from backend.config import APP_VERSION, MODEL_METRICS_PATH, ensure_directories
-from backend.ml.model_registry import load_model_info, load_model_metrics, model_artifact_exists
+from backend.config import APP_VERSION, ensure_directories
+from backend.ml.model_registry import get_model_runtime_status, load_model_info, load_model_metrics
 from backend.ml.predict import predict_event_probability
 from backend.noaa import available_noaa_dates, get_site_environmental_features
 from backend.observed.repository import (
@@ -37,7 +37,7 @@ app.add_middleware(GZipMiddleware, minimum_size=700)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -151,11 +151,14 @@ def health() -> dict[str, Any]:
 @app.get("/api/summary")
 def summary() -> dict[str, Any]:
     live_dates, _, live_source = available_noaa_dates()
+    model_runtime = get_model_runtime_status()
     return {
         "service": "coral-bleaching-api",
         "version": APP_VERSION,
         "started_at": STARTED_AT,
-        "model_ready": model_artifact_exists(),
+        "model_ready": bool(model_runtime["ready"]),
+        "model_status": model_runtime["status"],
+        "model_status_message": model_runtime["message"],
         "live_noaa_dates_available": len(live_dates),
         "latest_live_noaa_date": live_dates[-1] if live_dates else None,
         "live_date_source": live_source,
@@ -213,7 +216,9 @@ def site_observations(site_id: str) -> dict[str, Any]:
             {
                 "date": row["date"].date().isoformat(),
                 "observed_percent_bleaching": None if pd.isna(row["observed_percent_bleaching"]) else float(row["observed_percent_bleaching"]),
-                "observed_severity_category": row.get("observed_severity_category"),
+                "observed_severity_category": None
+                if pd.isna(row.get("observed_severity_category"))
+                else str(row.get("observed_severity_category")),
                 "target_bleaching_event": None if pd.isna(row["target_bleaching_event"]) else int(row["target_bleaching_event"]),
                 "label_quality_score": float(row["label_quality_score"]),
                 "is_direct_observation": bool(row["is_direct_observation"]),
@@ -289,16 +294,26 @@ def model_metrics() -> dict[str, Any]:
 
 @app.post("/api/predict")
 def predict(request: SiteAnalysisRequest) -> dict[str, Any]:
-    if not model_artifact_exists():
+    model_runtime = get_model_runtime_status()
+    if not model_runtime["ready"]:
         return {
             "available": False,
-            "message": "Model artifact is missing. Run the training pipeline first.",
+            "message": model_runtime["message"],
         }
 
     site = _resolve_site(request=request)
     dynamic, warnings = _resolve_dynamic_features(site, request, require_model_eligible=True)
     features = _prediction_features(site, dynamic)
-    result = predict_event_probability(features)
+    try:
+        result = predict_event_probability(features)
+    except Exception as exc:
+        return {
+            "available": False,
+            "message": (
+                "Prediction is unavailable because the model bundle could not be executed in this environment. "
+                f"Retrain the bundle to restore predictions. Runtime error: {exc}"
+            ),
+        }
 
     return {
         "available": True,

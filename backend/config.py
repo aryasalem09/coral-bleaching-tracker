@@ -11,7 +11,11 @@ PROCESSED_DIR = DATA_DIR / "processed"
 ML_DIR = PACKAGE_DIR / "ml"
 ML_ARTIFACTS_DIR = ML_DIR / "artifacts"
 
-OBSERVED_RAW_PATH = RAW_DIR / "global_bleaching_environmental.csv"
+OBSERVED_RAW_CANDIDATES = [
+    RAW_DIR / "global_coral_bleaching_bco_dmo.csv",
+    RAW_DIR / "global_bleaching_environmental.csv",
+]
+OBSERVED_RAW_PATH = next((path for path in OBSERVED_RAW_CANDIDATES if path.exists()), OBSERVED_RAW_CANDIDATES[0])
 OBSERVED_SITE_DATE_PATH = PROCESSED_DIR / "observed_site_date_clean.csv"
 OBSERVED_SITE_MONTH_PATH = PROCESSED_DIR / "observed_site_month_dataset.csv"
 OBSERVED_SITE_CATALOG_PATH = PROCESSED_DIR / "observed_site_catalog.csv"
@@ -35,7 +39,7 @@ NOAA_HS_DIR = RAW_DIR / "noaa_hs"
 NOAA_MANIFEST_PATH = RAW_DIR / "noaa_manifest.json"
 
 APP_VERSION = os.getenv("CBT_VERSION", "2.0.0")
-MODEL_VERSION = os.getenv("CBT_MODEL_VERSION", "2026.03.17")
+MODEL_VERSION = os.getenv("CBT_MODEL_VERSION", "2026.03.31")
 XR_ENGINE = os.getenv("XR_ENGINE", "h5netcdf")
 AUTO_DOWNLOAD_NOAA = os.getenv("AUTO_DOWNLOAD_NOAA", "false").lower() in {"1", "true", "yes"}
 REEF_KEY_DECIMALS = int(os.getenv("REEF_KEY_DECIMALS", "4"))
