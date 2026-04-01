@@ -1,42 +1,109 @@
 # Coral Bleaching Tracker
 
-Coral bleaching explorer with three explicitly separate layers:
+Coral bleaching explorer with three explicitly separated layers:
 
-- Observed Bleaching: cleaned historical site observations from the BCO-DMO-derived table.
-- Environmental Stress Outlook: transparent hotspot-like and DHW-like risk scoring.
-- Model Prediction: supervised `site-month` probability for a binary bleaching event.
+- Observed Bleaching: cleaned historical site observations
+- Environmental Stress Outlook: transparent NOAA heat-stress context
+- Model Prediction: supervised `site-month` bleaching-event probability
 
-The app is designed to stay honest about what is observation, what is heuristic stress scoring, and what is supervised ML.
+The app is designed to stay honest about what is observation, what is environmental stress, and what is supervised ML output.
 
 ## Current Architecture
 
-- Frontend: Vite + React 19 + TypeScript + `react-leaflet`
-- Backend: FastAPI in `backend/api.py`
+- Frontend: Vite + React + TypeScript
+- Backend API: `backend/api.py`
 - Observed data repository: `backend/observed/repository.py`
-- NOAA live-feature loader: `backend/noaa.py`
-- Risk scoring: `backend/risk`
-- Supervised ML pipeline: `backend/ml`
-- Deprecated legacy wrappers: `backend/src`
+- Weekly NOAA availability and sampling:
+  - `backend/noaa_products.py`
+  - `backend/noaa_index.py`
+  - `backend/noaa_sampling.py`
+  - `backend/noaa.py`
+- Weekly NOAA downloader:
+  - `backend/download_noaa_weekly_mondays.py`
+- Supervised ML pipeline:
+  - `backend/ml/build_dataset.py`
+  - `backend/ml/noaa_weekly_features.py`
+  - `backend/ml/train_model.py`
 
-## Data And Model Files
+## Data Layout
 
-- Raw observed source: `backend/data/raw/global_coral_bleaching_bco_dmo.csv`
-- Processed observed assets:
-  - `backend/data/processed/observed_site_date_clean.csv`
-  - `backend/data/processed/observed_site_catalog.csv`
-  - `backend/data/processed/observed_site_month_dataset.csv`
-- Model artifacts:
-  - `backend/ml/artifacts/bleaching_event_model.joblib`
-  - `backend/ml/artifacts/model_info.json`
-  - `backend/ml/artifacts/metrics.json`
-  - `backend/ml/artifacts/training_report.md`
+Processed observed/modeling assets:
 
-Optional NOAA daily files can be stored under:
+- `backend/data/processed/observed_site_date_clean.csv`
+- `backend/data/processed/observed_site_catalog.csv`
+- `backend/data/processed/observed_site_month_dataset.csv`
+- `backend/data/processed/noaa_weekly_feature_audit.json`
 
-- `backend/data/raw/noaa_dhw`
-- `backend/data/raw/noaa_hs`
+Raw NOAA weekly-Monday cache:
 
-If those NOAA files are absent, the website still runs. Risk and prediction fall back to historical site-month context when possible.
+- `backend/data/raw/noaa_dhw/`
+- `backend/data/raw/noaa_hs/`
+- `backend/data/raw/noaa_manifest_weekly_mondays.json`
+
+Model artifacts:
+
+- `backend/ml/artifacts/bleaching_event_model.joblib`
+- `backend/ml/artifacts/model_info.json`
+- `backend/ml/artifacts/metrics.json`
+- `backend/ml/artifacts/training_report.md`
+- `backend/ml/artifacts/feature_importance.csv`
+
+The raw NOAA archive is intentionally ignored by Git because the complete weekly cache is large.
+
+## NOAA Weekly Pipeline
+
+The project now downloads NOAA Coral Reef Watch daily NetCDF files for the Monday of every week across the paired product range.
+
+Features of the downloader:
+
+- remote year/date discovery from NOAA directory listings
+- atomic file writes
+- retry logic
+- skip-valid-file behavior
+- resumable reruns
+- missing-date logging
+- manifest output with per-date and per-product status
+
+Canonical command:
+
+```bash
+python3 -m backend.download_noaa_weekly_mondays
+```
+
+Examples:
+
+```bash
+python3 -m backend.download_noaa_weekly_mondays --workers 20
+python3 -m backend.download_noaa_weekly_mondays --start 2000-01-01 --end 2019-12-31
+```
+
+More detail: `docs/noaa_weekly_pipeline.md`
+
+## Modeling Decision
+
+The production target remains a binary bleaching event at the `site-month` level.
+
+Why it stays that way:
+
+- the observed labels are not a trustworthy weekly supervision stream
+- source programs use heterogeneous percent-bleaching conventions
+- a weekly target would overclaim temporal precision
+
+What changed instead:
+
+- the model now uses weekly Monday NOAA history aligned to the nearest prior Monday on or before each observed site-date
+- lagged, rolling, and trend features are constructed without future leakage
+- the training loop compares the legacy same-month formulation against the new weekly-history formulation
+- production prediction only runs when a full contiguous 12-week NOAA history can be assembled, because that is the support the trained model actually saw
+
+Current selected production model:
+
+- `weekly_history_hist_gradient_boosting`
+- held-out test AUROC: `0.666`
+- held-out test PR-AUC: `0.516`
+- weekly-history versus legacy same-month HGB PR-AUC gain: `+0.048`
+
+More detail: `docs/modeling_decision.md`
 
 ## Local Run
 
@@ -45,10 +112,10 @@ If those NOAA files are absent, the website still runs. Risk and prediction fall
 From the repository root:
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r backend/requirements.txt
-python -m uvicorn backend.api:app --reload
+python3 -m uvicorn backend.api:app --reload
 ```
 
 The backend serves at `http://127.0.0.1:8000`.
@@ -70,26 +137,25 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 
 If `VITE_API_BASE_URL` is unset in local development, the frontend defaults to `http://127.0.0.1:8000`.
 
-## Local Validation Commands
+## Retraining
 
-Frontend:
+1. Download the weekly NOAA Monday archive.
+2. Rebuild the modeling dataset.
+3. Retrain the supervised model.
 
-```bash
-cd frontend
-npm run lint
-npm run build
-```
-
-Backend:
+Commands:
 
 ```bash
-python -m uvicorn backend.api:app --reload
+python3 -m backend.download_noaa_weekly_mondays
+python3 -m backend.ml.build_dataset
+python3 -m backend.ml.train_model
 ```
 
-Useful routes:
+## Useful API Routes
 
 - `GET /health`
 - `GET /api/summary`
+- `GET /api/noaa/availability`
 - `GET /api/sites?south=...&west=...&north=...&east=...&limit=...`
 - `GET /api/site/{site_id}`
 - `GET /api/site/{site_id}/observations`
@@ -102,35 +168,15 @@ Useful routes:
 ## Prediction Honesty
 
 - Observed bleaching is not model output.
-- Environmental stress is not confirmed bleaching.
+- Environmental stress is not a confirmed bleaching observation.
 - Prediction is only returned by `POST /api/predict`.
-- Prediction is a same-month `site-month` event estimate, not a long-range forecast.
-- Published evaluation is time-held-out, not fully site-independent.
-- If the model bundle is missing or invalid, the backend returns an explicit unavailable message instead of silently substituting heuristic risk output.
+- Prediction remains a same-month `site-month` event estimate, not a long-range forecast.
+- The backend does not substitute a threshold heuristic and call it ML prediction.
+- If the required contiguous 12-week weekly NOAA history is missing for a requested site/date, the API returns prediction unavailable.
 
-## Rebuild The Model
+## Documentation
 
-If the prediction bundle needs to be regenerated:
-
-```bash
-python -m backend.ml.build_dataset
-python -m backend.ml.train_model
-```
-
-This rewrites the bundle and the metadata files in `backend/ml/artifacts`.
-
-## Deployment Notes
-
-- Local frontend builds now use `/` as the base path.
-- GitHub Pages builds use `/coral-bleaching-tracker/` automatically when built in GitHub Actions.
-- The old `backend/src` scripts are legacy compatibility paths only and should not be used for new development.
-
-## Docs
-
-- `docs/merge_readiness_audit.md`
-- `docs/system_audit.md`
-- `docs/data_label_audit.md`
-- `docs/dataset_construction_rules.md`
+- `docs/noaa_weekly_pipeline.md`
 - `docs/modeling_decision.md`
 - `docs/deployment_notes.md`
-- `docs/refactor_audit.md`
+- `docs/data_label_audit.md`

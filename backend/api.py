@@ -14,7 +14,13 @@ from pydantic import BaseModel
 from backend.config import APP_VERSION, ensure_directories
 from backend.ml.model_registry import get_model_runtime_status, load_model_info, load_model_metrics
 from backend.ml.predict import predict_event_probability
-from backend.noaa import available_noaa_dates, get_site_environmental_features
+from backend.noaa import (
+    available_noaa_dates,
+    get_site_environmental_features,
+    get_site_weekly_feature_context,
+    nearest_previous_noaa_monday,
+    noaa_coverage_summary,
+)
 from backend.observed.repository import (
     find_historical_context,
     find_nearest_site,
@@ -79,17 +85,27 @@ def _resolve_dynamic_features(
 
     if request.prefer_live:
         live_dates, _, _ = available_noaa_dates()
-        candidate_dates = [requested_date] if requested_date else list(reversed(live_dates))
-        for iso_date in [value for value in candidate_dates if value]:
+        if live_dates:
+            candidate_date = request.date or live_dates[-1]
             try:
-                live = get_site_environmental_features(float(site["latitude"]), float(site["longitude"]), iso_date)
-                if requested_date and iso_date != requested_date:
-                    warnings.append("Requested live date was unavailable; using the newest valid local NOAA date instead.")
-                live["requested_date"] = requested_date
-                return live, warnings
+                used_live_date = nearest_previous_noaa_monday(candidate_date)
+                if used_live_date is None:
+                    raise FileNotFoundError("No weekly NOAA Monday date was available at or before the requested date.")
+                current_live = get_site_environmental_features(
+                    float(site["latitude"]),
+                    float(site["longitude"]),
+                    str(used_live_date),
+                )
+                if requested_date and used_live_date != requested_date:
+                    warnings.append(
+                        f"Requested date {requested_date} did not have a local weekly NOAA Monday file; "
+                        f"used {used_live_date} instead."
+                    )
+                current_live["requested_date"] = requested_date
+                return current_live, warnings
             except Exception as exc:
                 if requested_date:
-                    warnings.append(f"Fell back from live NOAA data: {exc}")
+                    warnings.append(f"Fell back from live weekly NOAA data: {exc}")
 
     historical = find_historical_context(
         str(site["site_id"]),
@@ -125,11 +141,10 @@ def _prediction_features(site: dict[str, Any], dynamic: dict[str, Any]) -> dict[
         "turbidity": site.get("turbidity"),
         "cyclone_frequency": site.get("cyclone_frequency"),
         "depth_mean_m": site.get("depth_mean_m"),
-        "hotspot_like": dynamic.get("hotspot", dynamic.get("hotspot_like")),
-        "dhw_like": dynamic.get("dhw", dynamic.get("dhw_like")),
         "month_sin": math.sin(angle),
         "month_cos": math.cos(angle),
         "exposure": site.get("exposure"),
+        **dynamic,
     }
 
 
@@ -151,6 +166,7 @@ def health() -> dict[str, Any]:
 @app.get("/api/summary")
 def summary() -> dict[str, Any]:
     live_dates, _, live_source = available_noaa_dates()
+    weekly_coverage = noaa_coverage_summary()
     model_runtime = get_model_runtime_status()
     return {
         "service": "coral-bleaching-api",
@@ -162,6 +178,8 @@ def summary() -> dict[str, Any]:
         "live_noaa_dates_available": len(live_dates),
         "latest_live_noaa_date": live_dates[-1] if live_dates else None,
         "live_date_source": live_source,
+        "live_noaa_schedule": "weekly_mondays",
+        "live_noaa_first_date": weekly_coverage.get("paired_first_date"),
     }
 
 
@@ -249,8 +267,9 @@ def risk_info() -> dict[str, Any]:
         ),
         "thresholds": [threshold.__dict__ for threshold in RISK_THRESHOLDS],
         "fallback_behavior": (
-            "The API uses live NOAA daily files when available. If the requested live date is unavailable, "
-            "it falls back to the newest valid historical site-month environmental record."
+            "The API uses local weekly Monday NOAA files when available and moves backward to the nearest valid Monday "
+            "on or before the requested date. If that weekly context is unavailable, it falls back to the newest valid "
+            "historical site-month environmental record."
         ),
     }
 
@@ -292,6 +311,11 @@ def model_metrics() -> dict[str, Any]:
     return load_model_metrics()
 
 
+@app.get("/api/noaa/availability")
+def noaa_availability() -> dict[str, Any]:
+    return noaa_coverage_summary()
+
+
 @app.post("/api/predict")
 def predict(request: SiteAnalysisRequest) -> dict[str, Any]:
     model_runtime = get_model_runtime_status()
@@ -302,7 +326,28 @@ def predict(request: SiteAnalysisRequest) -> dict[str, Any]:
         }
 
     site = _resolve_site(request=request)
-    dynamic, warnings = _resolve_dynamic_features(site, request, require_model_eligible=True)
+    warnings: list[str] = []
+    try:
+        dynamic = get_site_weekly_feature_context(
+            lat=float(site["latitude"]),
+            lon=float(site["longitude"]),
+            requested_date=request.date,
+        )
+        if request.date and dynamic.get("used_date") != request.date:
+            warnings.append(
+                f"Requested date {request.date} did not have a local weekly NOAA Monday file; "
+                f"used {dynamic.get('used_date')} instead."
+            )
+    except Exception as exc:
+        return {
+            "available": False,
+            "message": (
+                "Prediction is unavailable because the required weekly NOAA feature history could not be assembled "
+                "for this site/date. The production model only supports full contiguous 12-week NOAA histories. "
+                f"Loader detail: {exc}"
+            ),
+        }
+
     features = _prediction_features(site, dynamic)
     try:
         result = predict_event_probability(features)
@@ -328,12 +373,12 @@ def predict(request: SiteAnalysisRequest) -> dict[str, Any]:
         "model_version": result.model_version,
         "target_definition": result.target_definition,
         "prediction_unit": result.prediction_unit,
-        "input_feature_window": "Static site factors + same-month thermal stress",
+        "input_feature_window": "Static site factors + weekly Monday NOAA current, lagged, rolling, and trend stress features",
         "data_quality_warning": None if not warnings else " ; ".join(warnings),
         "coverage_warning": (
-            "Prediction quality is limited by cross-source label heterogeneity. "
-            "This is a same-month site-event estimate, not a long-range forecast, and the published "
-            "evaluation is time-held-out rather than site-independent."
+            "Prediction quality is limited by cross-source label heterogeneity and by the local weekly NOAA coverage "
+            "available for this site/date. This is a same-month site-event estimate, not a long-range forecast, and "
+            "the published evaluation is time-held-out rather than fully site-independent."
         ),
         "features_used": {
             "distance_to_shore_km": features["distance_to_shore_km"],
@@ -342,6 +387,10 @@ def predict(request: SiteAnalysisRequest) -> dict[str, Any]:
             "depth_mean_m": features["depth_mean_m"],
             "hotspot_like": features["hotspot_like"],
             "dhw_like": features["dhw_like"],
+            "hotspot_like_max_4w": features.get("hotspot_like_max_4w"),
+            "dhw_like_max_12w": features.get("dhw_like_max_12w"),
+            "weekly_history_weeks_available": features.get("weekly_history_weeks_available"),
+            "weekly_missing_fraction_12w": features.get("weekly_missing_fraction_12w"),
             "exposure": features["exposure"],
         },
     }

@@ -23,6 +23,7 @@ from backend.ml.feature_definitions import (
     add_temporal_features,
 )
 from backend.ml.label_standardization import ensure_standardized_observed_assets
+from backend.ml.noaa_weekly_features import add_weekly_noaa_history_features
 from backend.ml.split_strategy import assign_time_split
 
 
@@ -42,8 +43,8 @@ def build_modeling_dataset() -> pd.DataFrame:
             turbidity=("turbidity", "mean"),
             cyclone_frequency=("cyclone_frequency", "mean"),
             depth_mean_m=("depth_mean_m", "mean"),
-            hotspot_like=("hotspot_like", "mean"),
-            dhw_like=("dhw_like", "mean"),
+            observed_same_month_hotspot_like=("hotspot_like", "mean"),
+            observed_same_month_dhw_like=("dhw_like", "mean"),
             observed_percent_bleaching=("observed_percent_bleaching", "mean"),
             label_quality_score=("label_quality_score", "mean"),
             source_count=("source_count", "max"),
@@ -84,7 +85,7 @@ def build_modeling_dataset() -> pd.DataFrame:
         excluded["reason"] = "missing_date"
         exclusion_reasons.append(excluded)
 
-    for column in ["latitude", "longitude", "hotspot_like", "dhw_like"]:
+    for column in ["latitude", "longitude"]:
         excluded = dataset.loc[dataset[column].isna(), ["site_id", "date"]].copy()
         if not excluded.empty:
             excluded["reason"] = f"missing_{column}"
@@ -100,8 +101,6 @@ def build_modeling_dataset() -> pd.DataFrame:
         & dataset["observed_percent_bleaching"].notna()
         & dataset["latitude"].notna()
         & dataset["longitude"].notna()
-        & dataset["hotspot_like"].notna()
-        & dataset["dhw_like"].notna()
         & ~dataset["has_derived_label_input"].fillna(False)
         & dataset["label_quality_score"].fillna(0).ge(0.45)
     )
@@ -115,9 +114,18 @@ def build_modeling_dataset() -> pd.DataFrame:
     )
 
     dataset = add_temporal_features(dataset, date_column="date")
+    dataset, _ = add_weekly_noaa_history_features(dataset)
+
+    weekly_excluded = dataset.loc[~dataset["weekly_feature_ready"].fillna(False), ["site_id", "date", "weekly_feature_error"]].copy()
+    if not weekly_excluded.empty:
+        weekly_excluded["reason"] = weekly_excluded["weekly_feature_error"].fillna("missing_weekly_noaa_context")
+        exclusion_reasons.append(weekly_excluded[["site_id", "date", "reason"]])
+
+    dataset["target_eligible"] = dataset["target_eligible"].fillna(False) & dataset["weekly_feature_ready"].fillna(False)
     dataset = assign_time_split(dataset, date_column="date")
 
     eligible = dataset.loc[dataset["target_eligible"]].copy()
+    eligible.drop(columns=["weekly_feature_error"], inplace=True, errors="ignore")
     OBSERVED_SITE_MONTH_PATH.parent.mkdir(parents=True, exist_ok=True)
     eligible.to_csv(OBSERVED_SITE_MONTH_PATH, index=False)
 
@@ -146,6 +154,9 @@ def ensure_modeling_dataset() -> pd.DataFrame:
             "target_is_binary_derivation",
             "target_eligible",
             "split",
+            "weekly_anchor_date",
+            "hotspot_like_lag_1w",
+            "dhw_like_mean_12w",
         }
         if required_columns.issubset(set(frame.columns)):
             return frame

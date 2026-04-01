@@ -90,7 +90,8 @@ export default function App() {
                     <h1>Observed outcomes, environmental stress, and supervised prediction in one honest workflow.</h1>
                     <p className="muted-copy">
                         This refactor separates recorded bleaching, transparent heat-stress outlooks, and a true
-                        supervised site-month model so the app does not blur observation, risk, and prediction.
+                        supervised site-month model driven by weekly NOAA heat-stress history so the app does not blur
+                        observation, risk, and prediction.
                     </p>
                 </div>
 

@@ -10,7 +10,7 @@ from backend.config import MODEL_BUNDLE_PATH, MODEL_INFO_PATH, MODEL_METRICS_PAT
 
 
 def _artifact_missing_message() -> str:
-    return "Model artifact is missing. Run `python -m backend.ml.train_model` to rebuild it."
+    return "Model artifact is missing. Run `python3 -m backend.ml.train_model` to rebuild it."
 
 
 @lru_cache(maxsize=1)

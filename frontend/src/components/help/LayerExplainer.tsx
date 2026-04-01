@@ -42,7 +42,7 @@ export default function LayerExplainer({ riskInfo, modelInfo, modelMetrics }: La
                 </p>
                 <p>
                     It is not a confirmed bleaching label. It tells us whether temperature stress conditions are
-                    compatible with bleaching pressure.
+                    compatible with bleaching pressure, using the nearest available weekly NOAA Monday context.
                 </p>
             </details>
 
@@ -50,13 +50,14 @@ export default function LayerExplainer({ riskInfo, modelInfo, modelMetrics }: La
                 <summary>Model Prediction</summary>
                 <p>
                     A supervised model trained to estimate a binary bleaching event at the site-month level using site
-                    factors plus thermal stress features. It estimates same-month event probability, not percent
-                    bleaching, not a guaranteed outcome, and not a long-range forecast.
+                    factors plus weekly NOAA Monday heat-stress history. It estimates same-month event probability, not
+                    percent bleaching, not a guaranteed outcome, and not a long-range forecast.
                 </p>
                 <p>
                     Production target: <strong>{modelInfo?.target_definition ?? "binary_bleaching_event"}</strong>.
                     Prediction unit: <strong>{modelInfo?.prediction_unit ?? "site-month"}</strong>.
                 </p>
+                <p>{modelInfo?.input_feature_window ?? "The model uses the nearest prior Monday and lagged weekly heat-stress context."}</p>
                 <p>
                     Test AUROC: <strong>{metricFromModel(modelMetrics, selectedModelName, "test", "auroc")}</strong>.
                     Test PR-AUC: <strong>{metricFromModel(modelMetrics, selectedModelName, "test", "pr_auc")}</strong>.

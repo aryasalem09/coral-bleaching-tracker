@@ -37,6 +37,8 @@ CALIBRATION_PATH = ML_ARTIFACTS_DIR / "calibration_curve.png"
 NOAA_DHW_DIR = RAW_DIR / "noaa_dhw"
 NOAA_HS_DIR = RAW_DIR / "noaa_hs"
 NOAA_MANIFEST_PATH = RAW_DIR / "noaa_manifest.json"
+NOAA_WEEKLY_MANIFEST_PATH = RAW_DIR / "noaa_manifest_weekly_mondays.json"
+NOAA_WEEKLY_FEATURE_AUDIT_PATH = PROCESSED_DIR / "noaa_weekly_feature_audit.json"
 
 APP_VERSION = os.getenv("CBT_VERSION", "2.0.0")
 MODEL_VERSION = os.getenv("CBT_MODEL_VERSION", "2026.03.31")

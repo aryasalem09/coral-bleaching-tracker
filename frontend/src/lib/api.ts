@@ -12,6 +12,8 @@ export type SummaryResponse = {
     live_noaa_dates_available: number;
     latest_live_noaa_date: string | null;
     live_date_source: string;
+    live_noaa_schedule?: string;
+    live_noaa_first_date?: string | null;
 };
 
 export type SitePoint = {
@@ -145,20 +147,45 @@ export type ModelInfoResponse = {
     feature_columns?: string[];
     validation_metric_used_for_selection?: string;
     decision_threshold?: number;
+    feature_set?: string;
+    model_family?: string;
+    input_feature_window?: string;
+    training_data_summary?: Record<string, unknown>;
 };
 
 export type ModelMetricsResponse = {
     available: boolean;
     selected_model?: string;
+    selected_model_summary?: Record<string, unknown>;
     candidate_results?: Record<
         string,
         {
+            feature_set?: string;
+            model_family?: string;
             validation: Record<string, number>;
             test: Record<string, number>;
         }
     >;
     split_overlap_summary?: Record<string, number>;
+    training_data_summary?: Record<string, unknown>;
+    formulation_comparison?: Record<string, number> | null;
     selected_model_additional_evaluation?: Record<string, Record<string, number> | null>;
+};
+
+export type NoaaAvailabilityResponse = {
+    source: string;
+    paired_date_count: number;
+    paired_first_date: string | null;
+    paired_last_date: string | null;
+    products: Record<
+        string,
+        {
+            date_count: number;
+            first_date: string | null;
+            last_date: string | null;
+            directory: string;
+        }
+    >;
 };
 
 export type SiteAnalysisRequest = {
@@ -324,6 +351,10 @@ export function getModelInfo(options?: RequestOptions): Promise<ModelInfoRespons
 
 export function getModelMetrics(options?: RequestOptions): Promise<ModelMetricsResponse> {
     return apiGet("/api/model/metrics", undefined, options);
+}
+
+export function getNoaaAvailability(options?: RequestOptions): Promise<NoaaAvailabilityResponse> {
+    return apiGet("/api/noaa/availability", undefined, options);
 }
 
 export function predictBleaching(payload: SiteAnalysisRequest, options?: RequestOptions): Promise<PredictionResponse> {

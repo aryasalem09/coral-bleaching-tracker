@@ -25,11 +25,13 @@ import {
     ApiError,
     getModelInfo,
     getModelMetrics,
+    getNoaaAvailability,
     getRiskInfo,
     getRiskScore,
     getSiteDetail,
     getSiteObservations,
     getSites,
+    type NoaaAvailabilityResponse,
     predictBleaching,
     type ModelInfoResponse,
     type ModelMetricsResponse,
@@ -114,12 +116,24 @@ function formatProbability(value: number | null | undefined): string {
     return `${(value * 100).toFixed(1)}%`;
 }
 
+function numericFeatureValue(features: Record<string, unknown> | undefined, key: string): number | null {
+    const value = features?.[key];
+    return typeof value === "number" && !Number.isNaN(value) ? value : null;
+}
+
 function riskTone(category: string | null | undefined): string {
     if (!category) return "tone-neutral";
     if (category === "severe") return "tone-severe";
     if (category === "high") return "tone-high";
     if (category === "moderate") return "tone-moderate";
     return "tone-low";
+}
+
+function riskModeLabel(mode: string | null | undefined): string {
+    if (mode === "noaa_weekly_monday") return "Weekly NOAA context";
+    if (mode === "historical_environmental") return "Historical aligned context";
+    if (mode === "historical_observed") return "Historical observed context";
+    return "Context status unknown";
 }
 
 function severityTone(category: string | null | undefined): string {
@@ -240,6 +254,7 @@ export default function MapEstimateLeaflet({
     const [riskInfo, setRiskInfo] = useState<RiskInfoResponse | null>(null);
     const [modelInfo, setModelInfo] = useState<ModelInfoResponse | null>(null);
     const [modelMetrics, setModelMetrics] = useState<ModelMetricsResponse | null>(null);
+    const [noaaAvailability, setNoaaAvailability] = useState<NoaaAvailabilityResponse | null>(null);
     const [loadingSites, setLoadingSites] = useState(true);
     const [loadingSite, setLoadingSite] = useState(false);
     const [loadingAnalysis, setLoadingAnalysis] = useState(false);
@@ -273,25 +288,27 @@ export default function MapEstimateLeaflet({
 
     useEffect(() => {
         if (serverStatus === "down") return;
-        if (riskInfo && modelInfo && modelMetrics) return;
+        if (riskInfo && modelInfo && modelMetrics && noaaAvailability) return;
 
         const controller = new AbortController();
         void Promise.all([
             getRiskInfo({ signal: controller.signal }),
             getModelInfo({ signal: controller.signal }),
             getModelMetrics({ signal: controller.signal }),
+            getNoaaAvailability({ signal: controller.signal }),
         ])
-            .then(([nextRiskInfo, nextModelInfo, nextModelMetrics]) => {
+            .then(([nextRiskInfo, nextModelInfo, nextModelMetrics, nextNoaaAvailability]) => {
                 setRiskInfo(nextRiskInfo);
                 setModelInfo(nextModelInfo);
                 setModelMetrics(nextModelMetrics);
+                setNoaaAvailability(nextNoaaAvailability);
             })
             .catch(() => {
                 // auxiliary metadata is helpful but non-blocking
             });
 
         return () => controller.abort();
-    }, [modelInfo, modelMetrics, riskInfo, serverStatus]);
+    }, [modelInfo, modelMetrics, noaaAvailability, riskInfo, serverStatus]);
 
     const fetchViewportSites = useCallback(
         async (viewport: MapViewport) => {
@@ -730,12 +747,12 @@ export default function MapEstimateLeaflet({
                             <section className="layer-card">
                                 <div className="section-heading section-heading--compact">
                                     <h4>Environmental Stress Outlook</h4>
-                                    <p>Separate from observed bleaching and separate from the supervised model.</p>
+                                    <p>Nearest weekly NOAA Monday stress snapshot, separate from observed bleaching and the supervised model.</p>
                                 </div>
 
                                 <div className={`hero-stat hero-stat--compact ${riskTone(riskResult?.category)}`}>
                                     <strong>{riskResult?.category ?? "loading"}</strong>
-                                    <span>{riskResult?.mode === "noaa_live" ? "NOAA daily context" : "Historical aligned context"}</span>
+                                    <span>{riskModeLabel(riskResult?.mode)}</span>
                                 </div>
 
                                 <div className="metric-grid">
@@ -753,7 +770,7 @@ export default function MapEstimateLeaflet({
                             <section className="layer-card">
                                 <div className="section-heading section-heading--compact">
                                     <h4>Model Prediction</h4>
-                                    <p>Supervised estimate of a binary bleaching event at the site-month level.</p>
+                                    <p>Supervised estimate of a binary bleaching event using weekly Monday NOAA history at the site-month level.</p>
                                 </div>
 
                                 <div
@@ -769,6 +786,13 @@ export default function MapEstimateLeaflet({
                                     <MetricCard label="Used date" value={prediction?.used_date ?? "n/a"} />
                                     <MetricCard label="Prediction unit" value={prediction?.prediction_unit ?? "n/a"} />
                                     <MetricCard
+                                        label="Weekly history"
+                                        value={
+                                            numericFeatureValue(prediction?.features_used, "weekly_history_weeks_available")?.toFixed(0) ??
+                                            "n/a"
+                                        }
+                                    />
+                                    <MetricCard
                                         label="Decision threshold"
                                         value={prediction?.threshold?.toFixed(2) ?? modelInfo?.decision_threshold?.toFixed(2) ?? "n/a"}
                                     />
@@ -780,6 +804,11 @@ export default function MapEstimateLeaflet({
 
                                 <p className="explanation-copy">
                                     {prediction?.data_quality_warning ? `${prediction.data_quality_warning} ` : ""}
+                                    {typeof numericFeatureValue(prediction?.features_used, "weekly_missing_fraction_12w") === "number"
+                                        ? `Weekly-history missing fraction: ${formatPercent(
+                                              numericFeatureValue(prediction?.features_used, "weekly_missing_fraction_12w")! * 100
+                                          )}. `
+                                        : ""}
                                     {prediction?.coverage_warning ??
                                         "This model was selected over a climatology baseline, but it still weakens on held-out future years."}
                                 </p>
@@ -802,8 +831,14 @@ export default function MapEstimateLeaflet({
 
                 <div className="footnote-grid">
                     <div className="footnote-card">
-                        <strong>Live NOAA coverage</strong>
-                        <span>{summary?.latest_live_noaa_date ?? "No local daily files cached in this session."}</span>
+                        <strong>Local NOAA coverage</strong>
+                        <span>
+                            {(summary?.latest_live_noaa_date ?? noaaAvailability?.paired_last_date)
+                                ? `${summary?.live_noaa_first_date ?? noaaAvailability?.paired_first_date ?? "unknown"} to ${
+                                      summary?.latest_live_noaa_date ?? noaaAvailability?.paired_last_date
+                                  } (${summary?.live_noaa_schedule ?? "weekly_mondays"})`
+                                : "No local weekly NOAA Monday files cached in this session."}
+                        </span>
                     </div>
                     <div className="footnote-card">
                         <strong>Adaptive rendering</strong>

@@ -1,0 +1,55 @@
+{
+  "generated_at": "2026-04-01T01:25:27Z",
+  "available_monday_count": 2141,
+  "first_available_monday": "1985-03-25",
+  "last_available_monday": "2026-03-30",
+  "rows_requested": 19676,
+  "rows_ready": 19643,
+  "rows_excluded_no_weekly_anchor": 28,
+  "rows_excluded_sampling_error": 5,
+  "sampling_error_examples": [
+    {
+      "site_id": "3036",
+      "date": "2008-06-18",
+      "weekly_anchor_date": "2008-06-16",
+      "error": "No valid NOAA ocean grid cell was found near the selected site."
+    },
+    {
+      "site_id": "3795",
+      "date": "1998-04-15",
+      "weekly_anchor_date": "1998-04-13",
+      "error": "No valid NOAA ocean grid cell was found near the selected site."
+    },
+    {
+      "site_id": "4334",
+      "date": "2005-12-25",
+      "weekly_anchor_date": "2005-12-19",
+      "error": "No valid NOAA ocean grid cell was found near the selected site."
+    },
+    {
+      "site_id": "6558",
+      "date": "2003-09-15",
+      "weekly_anchor_date": "2003-09-15",
+      "error": "No valid NOAA ocean grid cell was found near the selected site."
+    },
+    {
+      "site_id": "9294",
+      "date": "2001-10-15",
+      "weekly_anchor_date": "2001-10-15",
+      "error": "No valid NOAA ocean grid cell was found near the selected site."
+    }
+  ],
+  "history_weeks_target": 12,
+  "lag_offsets_weeks": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "rolling_windows_weeks": [
+    4,
+    8,
+    12
+  ],
+  "temporal_alignment": "Each site-month row uses the nearest available Monday on or before the observed site-date as the current weekly anchor. Lagged and rolling NOAA features use only Mondays at or before that anchor date."
+}
