@@ -32,17 +32,18 @@ export default function LayerExplainer({ riskInfo, modelInfo, modelMetrics }: La
                     Recorded site-month outcomes from the BCO-DMO global bleaching database. This layer shows what was
                     actually reported at that site and date, after duplicate rows were standardized and aggregated.
                 </p>
+                <p>Observed survey dates are sparse and irregular. They should not be interpreted as a weekly environmental time series.</p>
             </details>
 
             <details className="explanation-block" open>
-                <summary>Environmental Stress Outlook</summary>
+                <summary>Environmental / NOAA Weekly History</summary>
                 <p>
                     {riskInfo?.definition ??
                         "A transparent heat-stress score based on hotspot-like thermal stress and accumulated heat stress."}
                 </p>
                 <p>
                     It is not a confirmed bleaching label. It tells us whether temperature stress conditions are
-                    compatible with bleaching pressure, using the nearest available weekly NOAA Monday context.
+                    compatible with bleaching pressure, using weekly NOAA Monday context when that history can be reconstructed.
                 </p>
             </details>
 
@@ -53,6 +54,7 @@ export default function LayerExplainer({ riskInfo, modelInfo, modelMetrics }: La
                     factors plus weekly NOAA Monday heat-stress history. It estimates same-month event probability, not
                     percent bleaching, not a guaranteed outcome, and not a long-range forecast.
                 </p>
+                <p>If the model bundle is unavailable, the UI shows a model-unavailable state instead of implying the probability is below threshold.</p>
                 <p>
                     Production target: <strong>{modelInfo?.target_definition ?? "binary_bleaching_event"}</strong>.
                     Prediction unit: <strong>{modelInfo?.prediction_unit ?? "site-month"}</strong>.

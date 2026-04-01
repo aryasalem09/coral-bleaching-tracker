@@ -43,7 +43,13 @@ NOAA_WEEKLY_FEATURE_AUDIT_PATH = PROCESSED_DIR / "noaa_weekly_feature_audit.json
 APP_VERSION = os.getenv("CBT_VERSION", "2.0.0")
 MODEL_VERSION = os.getenv("CBT_MODEL_VERSION", "2026.03.31")
 XR_ENGINE = os.getenv("XR_ENGINE", "h5netcdf")
-AUTO_DOWNLOAD_NOAA = os.getenv("AUTO_DOWNLOAD_NOAA", "false").lower() in {"1", "true", "yes"}
+# The repo does not commit the full raw NOAA Monday cache. Defaulting to on-demand
+# fetch keeps fresh deployments functional while still allowing operators to disable
+# network-backed cache fills explicitly.
+AUTO_DOWNLOAD_NOAA = os.getenv("AUTO_DOWNLOAD_NOAA", "true").lower() in {"1", "true", "yes"}
+NOAA_DOWNLOAD_TIMEOUT_SECONDS = float(os.getenv("NOAA_DOWNLOAD_TIMEOUT_SECONDS", "60"))
+NOAA_DOWNLOAD_RETRIES = int(os.getenv("NOAA_DOWNLOAD_RETRIES", "2"))
+NOAA_DOWNLOAD_WORKERS = int(os.getenv("NOAA_DOWNLOAD_WORKERS", "4"))
 REEF_KEY_DECIMALS = int(os.getenv("REEF_KEY_DECIMALS", "4"))
 MAX_VIEWPORT_POINTS = int(os.getenv("MAX_VIEWPORT_POINTS", "2500"))
 MODEL_DECISION_THRESHOLD = float(os.getenv("MODEL_DECISION_THRESHOLD", "0.5"))

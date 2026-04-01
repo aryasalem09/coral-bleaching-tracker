@@ -7,13 +7,29 @@ export type SummaryResponse = {
     version: string;
     started_at: string;
     model_ready: boolean;
+    model_loaded: boolean;
     model_status: "ready" | "missing" | "invalid";
     model_status_message: string;
+    model_version?: string | null;
+    sklearn_version?: string;
+    trained_with_sklearn_version?: string | null;
     live_noaa_dates_available: number;
     latest_live_noaa_date: string | null;
     live_date_source: string;
     live_noaa_schedule?: string;
     live_noaa_first_date?: string | null;
+};
+
+export type ModelStatusResponse = {
+    status: "ready" | "missing" | "invalid";
+    ready: boolean;
+    model_loaded: boolean;
+    message: string;
+    artifact_path: string;
+    model_version: string | null;
+    sklearn_version: string;
+    trained_with_sklearn_version: string | null;
+    loader_error: string | null;
 };
 
 export type SitePoint = {
@@ -120,18 +136,25 @@ export type RiskScoreResponse = {
 
 export type PredictionResponse = {
     available: boolean;
+    status?: string;
     site_id?: string;
     display_name?: string;
     requested_date?: string | null;
+    feature_date_used?: string;
     used_date?: string;
+    weekly_anchor_date?: string;
+    context_source?: string;
     mode?: string;
+    model_loaded?: boolean;
     predicted_event?: boolean;
+    predicted_class_label?: string;
     probability?: number;
     threshold?: number;
     model_version?: string;
     target_definition?: string;
     prediction_unit?: string;
     input_feature_window?: string;
+    coverage_notes?: string[];
     data_quality_warning?: string | null;
     coverage_warning?: string | null;
     message?: string;
@@ -142,6 +165,9 @@ export type ModelInfoResponse = {
     available: boolean;
     model_name?: string;
     model_version?: string;
+    trained_with_sklearn_version?: string;
+    sklearn_version?: string;
+    artifact_path?: string;
     target_definition?: string;
     prediction_unit?: string;
     feature_columns?: string[];
@@ -170,6 +196,8 @@ export type ModelMetricsResponse = {
     training_data_summary?: Record<string, unknown>;
     formulation_comparison?: Record<string, number> | null;
     selected_model_additional_evaluation?: Record<string, Record<string, number> | null>;
+    sklearn_version?: string;
+    trained_with_sklearn_version?: string;
 };
 
 export type NoaaAvailabilityResponse = {
@@ -194,6 +222,96 @@ export type SiteAnalysisRequest = {
     lon?: number;
     date?: string;
     prefer_live?: boolean;
+};
+
+export type EnvironmentalStressSummary = {
+    available: boolean;
+    requested_date?: string | null;
+    used_date?: string;
+    mode?: string;
+    category?: string;
+    score?: number;
+    color?: string;
+    hotspot?: number;
+    dhw?: number;
+    explanation?: string;
+    warnings?: string[];
+    message?: string;
+};
+
+export type WeeklyNoaaRecord = {
+    date: string;
+    hotspot: number;
+    dhw: number;
+    used_lat: number;
+    used_lon: number;
+    snap_km: number;
+    snapped: boolean;
+};
+
+export type WeeklyNoaaHistory = {
+    available: boolean;
+    requested_date?: string | null;
+    anchor_date?: string;
+    history_window_weeks?: number;
+    records: WeeklyNoaaRecord[];
+    summary?: {
+        weeks_returned: number;
+        max_hotspot: number | null;
+        max_dhw: number | null;
+        mean_hotspot: number | null;
+        mean_dhw: number | null;
+        hotspot_positive_weeks: number;
+        dhw_alert_weeks: number;
+        source: string;
+    };
+    message?: string | null;
+};
+
+export type SelectedSiteAnalysisResponse = {
+    site: SiteMeta;
+    selected_observed_date: string | null;
+    observed_summary: {
+        record_count: number;
+        unique_survey_dates: number;
+        positive_observation_count: number;
+        mean_label_quality_score: number;
+        first_observed_date: string | null;
+        latest_observed_date: string | null;
+        observation_sparsity_note: string;
+        single_survey_date_only: boolean;
+    };
+    observed_timeline: {
+        recommended_date: string | null;
+        records: ObservationRecord[];
+    };
+    environmental_noaa: {
+        stress_outlook: EnvironmentalStressSummary;
+        weekly_history: WeeklyNoaaHistory;
+    };
+    prediction: PredictionResponse;
+    model_metadata: {
+        model_loaded: boolean;
+        runtime_status: string;
+        runtime_message: string;
+        model_version?: string | null;
+        prediction_unit?: string;
+        target_definition?: string;
+        trained_with_sklearn_version?: string | null;
+        sklearn_version?: string;
+        artifact_path?: string;
+        decision_threshold?: number;
+        feature_set?: string;
+        model_family?: string;
+        input_feature_window?: string;
+    };
+    data_availability: {
+        observed_timeline_available: boolean;
+        weekly_noaa_history_available: boolean;
+        environmental_summary_available: boolean;
+        prediction_available: boolean;
+        model_loaded: boolean;
+    };
 };
 
 export class ApiError extends Error {
@@ -318,6 +436,10 @@ export function getSummary(options?: RequestOptions): Promise<SummaryResponse> {
     return apiGet("/api/summary", undefined, options);
 }
 
+export function getModelStatus(options?: RequestOptions): Promise<ModelStatusResponse> {
+    return apiGet("/api/model/status", undefined, options);
+}
+
 export function getSites(
     south: number,
     west: number,
@@ -335,6 +457,14 @@ export function getSiteDetail(siteId: string, options?: RequestOptions): Promise
 
 export function getSiteObservations(siteId: string, options?: RequestOptions): Promise<ObservationsResponse> {
     return apiGet(`/api/site/${siteId}/observations`, undefined, options);
+}
+
+export function getSiteAnalysis(
+    siteId: string,
+    params?: { date?: string | null; prefer_live?: boolean },
+    options?: RequestOptions
+): Promise<SelectedSiteAnalysisResponse> {
+    return apiGet(`/api/site/${siteId}/analysis`, params, options);
 }
 
 export function getRiskInfo(options?: RequestOptions): Promise<RiskInfoResponse> {

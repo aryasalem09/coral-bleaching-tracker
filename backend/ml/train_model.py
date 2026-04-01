@@ -8,6 +8,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+import sklearn
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
@@ -264,6 +265,10 @@ def train_and_evaluate() -> dict[str, object]:
         "decision_threshold": best_threshold,
         "model_name": best_name,
         "model_version": MODEL_VERSION,
+        # sklearn pipelines are not forward-compatible across arbitrary releases
+        # because ColumnTransformer internals are part of the pickle payload.
+        # We therefore record and pin the exact training sklearn version.
+        "trained_with_sklearn_version": sklearn.__version__,
         "target_definition": PRODUCTION_TARGET_NAME,
         "prediction_unit": PREDICTION_UNIT,
         "feature_set": best_spec.feature_set,
@@ -286,6 +291,7 @@ def train_and_evaluate() -> dict[str, object]:
         "available": True,
         "model_name": best_name,
         "model_version": MODEL_VERSION,
+        "trained_with_sklearn_version": sklearn.__version__,
         "target_definition": PRODUCTION_TARGET_NAME,
         "prediction_unit": PREDICTION_UNIT,
         "feature_columns": best_feature_columns,

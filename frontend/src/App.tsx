@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import MapEstimateLeaflet from "./components/map/MapEstimateLeaflet";
 import WarmupBanner from "./components/ui/WarmupBanner";
-import { getSummary, warmBackend, type SummaryResponse } from "./lib/api";
+import { getModelStatus, getSummary, warmBackend, type ModelStatusResponse, type SummaryResponse } from "./lib/api";
 import type { ServerStatus } from "./types/server";
 
 const GITHUB_URL = "https://github.com/aryasalem09/coral-bleaching-tracker";
@@ -13,16 +13,17 @@ function statusLabel(serverStatus: ServerStatus): string {
     return "Checking backend";
 }
 
-function modelStatusLabel(summary: SummaryResponse | null): string {
-    if (!summary) return "Checking model bundle";
-    if (summary.model_status === "ready") return "Model bundle ready";
-    if (summary.model_status === "invalid") return "Model bundle invalid";
+function modelStatusLabel(modelStatus: ModelStatusResponse | null): string {
+    if (!modelStatus) return "Checking model bundle";
+    if (modelStatus.status === "ready") return "Model bundle ready";
+    if (modelStatus.status === "invalid") return "Model bundle unavailable";
     return "Model bundle missing";
 }
 
 export default function App() {
     const [serverStatus, setServerStatus] = useState<ServerStatus>("unknown");
     const [summary, setSummary] = useState<SummaryResponse | null>(null);
+    const [modelStatus, setModelStatus] = useState<ModelStatusResponse | null>(null);
     const [warmElapsedSeconds, setWarmElapsedSeconds] = useState(0);
     const mountedRef = useRef(true);
     const serverStatusRef = useRef<ServerStatus>("unknown");
@@ -34,8 +35,11 @@ export default function App() {
 
     const refreshSummary = useCallback(async () => {
         try {
-            const nextSummary = await getSummary();
-            if (mountedRef.current) setSummary(nextSummary);
+            const [nextSummary, nextModelStatus] = await Promise.all([getSummary(), getModelStatus()]);
+            if (mountedRef.current) {
+                setSummary(nextSummary);
+                setModelStatus(nextModelStatus);
+            }
         } catch {
             // summary is helpful, but not critical for first paint
         }
@@ -97,8 +101,8 @@ export default function App() {
 
                 <div className="topbar-actions">
                     <div className={`status-pill status-pill--${serverStatus}`}>{statusLabel(serverStatus)}</div>
-                    <div className="status-pill status-pill--ghost" title={summary?.model_status_message}>
-                        {modelStatusLabel(summary)}
+                    <div className="status-pill status-pill--ghost" title={modelStatus?.message ?? summary?.model_status_message}>
+                        {modelStatusLabel(modelStatus)}
                     </div>
                     <a className="link-button" href={GITHUB_URL} target="_blank" rel="noreferrer">
                         GitHub
@@ -112,6 +116,7 @@ export default function App() {
                 onServerReachable={() => setServerStatus("ready")}
                 onServerDown={() => setServerStatus("down")}
                 summary={summary}
+                modelStatus={modelStatus}
             />
         </div>
     );

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
+from backend.config import AUTO_DOWNLOAD_NOAA
+from backend.noaa_cache import ensure_weekly_dates_available
 from backend.ml.noaa_weekly_features import HISTORY_WEEKS, build_weekly_feature_row
 from backend.noaa_index import NoaaAvailabilityIndex, get_noaa_weekly_index
+from backend.noaa_products import normalize_iso_date, parse_iso_date
 from backend.noaa_sampling import haversine_km, sample_site_environmental_context
 
 
@@ -30,6 +33,32 @@ def nearest_previous_noaa_monday(iso_date: str | date | None) -> str | None:
 
 def recent_noaa_history_dates(iso_date: str | date, *, weeks: int) -> list[str]:
     return get_noaa_weekly_index().recent_history_dates(iso_date, weeks=weeks)
+
+
+def _monday_on_or_before(iso_date: str | date | None) -> str | None:
+    if iso_date is None:
+        today = date.today()
+        return (today - timedelta(days=today.weekday())).isoformat()
+
+    if isinstance(iso_date, date):
+        return (iso_date - timedelta(days=iso_date.weekday())).isoformat()
+
+    normalized = normalize_iso_date(iso_date)
+    if normalized is None:
+        return None
+    parsed = parse_iso_date(normalized)
+    return (parsed - timedelta(days=parsed.weekday())).isoformat()
+
+
+def _history_window_dates(anchor_date: str, *, weeks: int) -> list[str]:
+    anchor = parse_iso_date(anchor_date)
+    return [(anchor - timedelta(days=7 * offset)).isoformat() for offset in range(weeks - 1, -1, -1)]
+
+
+def _try_fill_history_window(anchor_date: str) -> dict[str, Any] | None:
+    if not AUTO_DOWNLOAD_NOAA:
+        return None
+    return ensure_weekly_dates_available(_history_window_dates(anchor_date, weeks=HISTORY_WEEKS))
 
 
 def get_site_environmental_features(
@@ -55,10 +84,23 @@ def get_site_weekly_feature_context(
     else:
         dates = availability.all_available_monday_dates()
         anchor_date = dates[-1] if dates else None
+
+    fallback_anchor = _monday_on_or_before(requested_date)
+    if anchor_date is None and fallback_anchor:
+        download_report = _try_fill_history_window(fallback_anchor)
+        if download_report is not None:
+            availability = get_noaa_weekly_index()
+            anchor_date = availability.nearest_previous_monday(requested_date or fallback_anchor) or fallback_anchor
+
     if anchor_date is None:
         raise FileNotFoundError("No weekly NOAA Monday files are available at or before the requested date.")
 
     history_dates = availability.recent_history_dates(anchor_date, weeks=HISTORY_WEEKS)
+    if len(history_dates) < HISTORY_WEEKS:
+        download_report = _try_fill_history_window(anchor_date)
+        if download_report is not None:
+            availability = get_noaa_weekly_index()
+            history_dates = availability.recent_history_dates(anchor_date, weeks=HISTORY_WEEKS)
     if not history_dates:
         raise FileNotFoundError("No weekly NOAA history was available for the requested site-date.")
     if len(history_dates) < HISTORY_WEEKS:
@@ -110,5 +152,17 @@ def get_site_weekly_feature_context(
         "requested_date": requested_date,
         "used_date": anchor_date,
         "history_dates": history_dates,
+        "history_records": [
+            {
+                "date": iso_date,
+                "hotspot": float(sample["hotspot"]),
+                "dhw": float(sample["dhw"]),
+                "used_lat": float(sample.get("used_lat", lat)),
+                "used_lon": float(sample.get("used_lon", lon)),
+                "snap_km": float(sample.get("snap_km", 0.0)),
+                "snapped": bool(sample.get("snapped", False)),
+            }
+            for iso_date, sample in zip(history_dates, sampled_history, strict=False)
+        ],
         "mode": "noaa_weekly_monday",
     }

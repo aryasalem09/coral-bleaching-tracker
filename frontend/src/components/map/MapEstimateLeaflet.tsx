@@ -27,18 +27,19 @@ import {
     getModelMetrics,
     getNoaaAvailability,
     getRiskInfo,
-    getRiskScore,
+    getSiteAnalysis,
     getSiteDetail,
     getSiteObservations,
     getSites,
+    type ModelStatusResponse,
     type NoaaAvailabilityResponse,
     predictBleaching,
+    type SelectedSiteAnalysisResponse,
     type ModelInfoResponse,
     type ModelMetricsResponse,
     type ObservationRecord,
     type PredictionResponse,
     type RiskInfoResponse,
-    type RiskScoreResponse,
     type SiteMeta,
     type SitePoint,
     type SummaryResponse,
@@ -52,6 +53,7 @@ type MapEstimateLeafletProps = {
     onServerReachable: () => void;
     onServerDown: () => void;
     summary: SummaryResponse | null;
+    modelStatus: ModelStatusResponse | null;
 };
 
 type LayerKey = "observed" | "risk" | "prediction";
@@ -116,6 +118,11 @@ function formatProbability(value: number | null | undefined): string {
     return `${(value * 100).toFixed(1)}%`;
 }
 
+function formatNumber(value: number | null | undefined, digits = 2): string {
+    if (typeof value !== "number" || Number.isNaN(value)) return "n/a";
+    return value.toFixed(digits);
+}
+
 function numericFeatureValue(features: Record<string, unknown> | undefined, key: string): number | null {
     const value = features?.[key];
     return typeof value === "number" && !Number.isNaN(value) ? value : null;
@@ -134,6 +141,12 @@ function riskModeLabel(mode: string | null | undefined): string {
     if (mode === "historical_environmental") return "Historical aligned context";
     if (mode === "historical_observed") return "Historical observed context";
     return "Context status unknown";
+}
+
+function predictionContextLabel(source: string | null | undefined): string {
+    if (source === "historical_model_row") return "Archived site-month feature row";
+    if (source === "weekly_noaa_history") return "Weekly NOAA history";
+    return "Prediction context";
 }
 
 function severityTone(category: string | null | undefined): string {
@@ -241,6 +254,7 @@ export default function MapEstimateLeaflet({
     onServerReachable,
     onServerDown,
     summary,
+    modelStatus,
 }: MapEstimateLeafletProps) {
     const { tier, inferredTier, overrideTier, setOverride } = useCapabilityTier();
     const [activeLayer, setActiveLayer] = useState<LayerKey>("observed");
@@ -249,7 +263,7 @@ export default function MapEstimateLeaflet({
     const [siteMeta, setSiteMeta] = useState<SiteMeta | null>(null);
     const [observations, setObservations] = useState<ObservationRecord[]>([]);
     const [selectedDate, setSelectedDate] = useState("");
-    const [riskResult, setRiskResult] = useState<RiskScoreResponse | null>(null);
+    const [siteAnalysis, setSiteAnalysis] = useState<SelectedSiteAnalysisResponse | null>(null);
     const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
     const [riskInfo, setRiskInfo] = useState<RiskInfoResponse | null>(null);
     const [modelInfo, setModelInfo] = useState<ModelInfoResponse | null>(null);
@@ -282,6 +296,10 @@ export default function MapEstimateLeaflet({
         () => Math.max(0, sortedObservationDates.findIndex((date) => date === selectedDate)),
         [selectedDate, sortedObservationDates]
     );
+    const environmentalSummary = siteAnalysis?.environmental_noaa.stress_outlook ?? null;
+    const weeklyHistory = siteAnalysis?.environmental_noaa.weekly_history ?? null;
+    const riskResult = environmentalSummary as any;
+    const availablePrediction = prediction && prediction.available ? prediction : null;
     const layerAccent = LAYER_META[activeLayer].accent;
     const markerRadius = markerRadiusForTier(tier, mapZoom);
     const selectedModelName = modelInfo?.model_name ?? modelMetrics?.selected_model ?? "hist_gradient_boosting";
@@ -380,7 +398,7 @@ export default function MapEstimateLeaflet({
                     setSiteMeta(detail.site);
                     setObservations(observationResponse.records);
                     setSelectedDate(nextDate);
-                    setRiskResult(null);
+                    setSiteAnalysis(null);
                     setPrediction(null);
                     setAnalysisNotice("");
                     setError("");
@@ -417,35 +435,35 @@ export default function MapEstimateLeaflet({
         setError("");
 
         if (activeLayer === "risk") {
-            setRiskResult(null);
-            void getRiskScore(
+            setSiteAnalysis(null);
+            void getSiteAnalysis(
+                siteMeta.site_id,
                 {
-                    site_id: siteMeta.site_id,
                     date: selectedDate,
                     prefer_live: true,
                 },
                 { signal: controller.signal }
             )
-                .then((nextRisk) => {
+                .then((analysisPayload) => {
                     if (analysisRequestRef.current !== requestId) return;
-                    setRiskResult(nextRisk);
+                    setSiteAnalysis(analysisPayload);
                     setError("");
-                    if (nextRisk.used_date !== selectedDate && sortedObservationDates.includes(nextRisk.used_date)) {
+                    if (analysisPayload.environmental_noaa.weekly_history.available) {
                         setAnalysisNotice(
-                            `Moved from ${selectedDate} to ${nextRisk.used_date} because the risk layer needed the newest valid earlier context.`
+                            `Survey date remains ${selectedDate}. Weekly NOAA history uses Monday anchor ${analysisPayload.environmental_noaa.weekly_history.anchor_date ?? "n/a"}.`
                         );
-                        setSelectedDate(nextRisk.used_date);
-                        onServerReachable();
-                        return;
+                    } else if (analysisPayload.environmental_noaa.weekly_history.message) {
+                        setAnalysisNotice(analysisPayload.environmental_noaa.weekly_history.message);
+                    } else {
+                        setAnalysisNotice("");
                     }
-                    setAnalysisNotice("");
                     onServerReachable();
                 })
                 .catch((error: unknown) => {
                     if (analysisRequestRef.current !== requestId || isAbortError(error)) return;
                     if (error instanceof ApiError && error.status === 404) {
-                        setRiskResult(null);
-                        setAnalysisNotice("No valid environmental risk context exists at or before the selected reef date.");
+                        setSiteAnalysis(null);
+                        setAnalysisNotice("No environmental context was available for the selected survey date.");
                         return;
                     }
                     if (error instanceof ApiError && error.status >= 500) onServerDown();
@@ -465,36 +483,28 @@ export default function MapEstimateLeaflet({
             {
                 site_id: siteMeta.site_id,
                 date: selectedDate,
-                prefer_live: true,
+                prefer_live: false,
             },
             { signal: controller.signal }
         )
             .then((predictionPayload) => {
                 if (analysisRequestRef.current !== requestId) return;
-                if (predictionPayload.available === false) {
-                    setPrediction(null);
-                    setAnalysisNotice(predictionPayload.message ?? "Model output is unavailable because the model artifact is missing.");
-                    return;
-                }
-
                 setPrediction(predictionPayload);
                 setError("");
-                if (predictionPayload.used_date && predictionPayload.used_date !== selectedDate && sortedObservationDates.includes(predictionPayload.used_date)) {
+                if (predictionPayload.available) {
                     setAnalysisNotice(
-                        `Moved from ${selectedDate} to ${predictionPayload.used_date} because the prediction layer needed the newest valid earlier context.`
+                        `Prediction keeps survey date ${selectedDate} fixed and uses ${predictionPayload.context_source === "historical_model_row" ? "the archived site-month feature row" : "weekly NOAA history"} for model input.`
                     );
-                    setSelectedDate(predictionPayload.used_date);
-                    onServerReachable();
-                    return;
+                } else {
+                    setAnalysisNotice(predictionPayload.message ?? "Prediction model unavailable.");
                 }
-                setAnalysisNotice("");
                 onServerReachable();
             })
             .catch((error: unknown) => {
                 if (analysisRequestRef.current !== requestId || isAbortError(error)) return;
                 if (error instanceof ApiError && error.status === 404) {
                     setPrediction(null);
-                    setAnalysisNotice("No model-eligible historical context passed QA at or before the selected reef date.");
+                    setAnalysisNotice("No model-ready site-month context exists at or before the selected survey date.");
                     return;
                 }
                 if (error instanceof ApiError && error.status >= 500) onServerDown();
@@ -507,7 +517,7 @@ export default function MapEstimateLeaflet({
             });
 
         return () => controller.abort();
-    }, [activeLayer, onServerDown, onServerReachable, selectedDate, siteMeta, sortedObservationDates]);
+    }, [activeLayer, onServerDown, onServerReachable, selectedDate, siteMeta]);
 
     const moveTimeline = useCallback(
         (delta: number) => {
@@ -628,7 +638,7 @@ export default function MapEstimateLeaflet({
                     <p className="muted-copy">
                         {siteMeta
                             ? `${siteMeta.ecoregion_name ?? "Unknown ecoregion"} · ${siteMeta.country_name ?? "Unknown country"}`
-                            : "Pick a site on the map to load observed records, risk context, and the supervised model output."}
+                            : "Pick a site on the map to load survey records, NOAA weekly context, and model output without blurring those layers together."}
                     </p>
                 </div>
 
@@ -657,8 +667,8 @@ export default function MapEstimateLeaflet({
 
                         <section className="timeline-card">
                             <div className="section-heading section-heading--compact">
-                                <h4>Observed timeline</h4>
-                                <p>Newest valid observed date is auto-selected when a site is clicked.</p>
+                                <h4>Observed Survey Timeline</h4>
+                                <p>Survey-backed dates only. This list is sparse and irregular, and it is not the weekly NOAA history.</p>
                             </div>
 
                             <div className="timeline-controls">
@@ -700,6 +710,11 @@ export default function MapEstimateLeaflet({
                                     </button>
                                 ))}
                             </div>
+                            <p className="timeline-note">
+                                {sortedObservationDates.length === 1
+                                    ? "This site currently has one cleaned survey-backed observation date. That is normal for sparse monitoring and does not mean weekly environmental data is missing."
+                                    : "Use the Environmental tab for weekly Monday NOAA history and the Prediction tab for model output. The selected survey date remains fixed across both."}
+                            </p>
                         </section>
 
                         {activeLayer === "observed" ? (
@@ -746,19 +761,78 @@ export default function MapEstimateLeaflet({
                         {activeLayer === "risk" ? (
                             <section className="layer-card">
                                 <div className="section-heading section-heading--compact">
-                                    <h4>Environmental Stress Outlook</h4>
-                                    <p>Nearest weekly NOAA Monday stress snapshot, separate from observed bleaching and the supervised model.</p>
+                                    <h4>Environmental / NOAA Weekly History</h4>
+                                    <p>Weekly Monday-derived NOAA thermal history is shown separately from sparse survey observations and from model output.</p>
                                 </div>
 
-                                <div className={`hero-stat hero-stat--compact ${riskTone(riskResult?.category)}`}>
-                                    <strong>{riskResult?.category ?? "loading"}</strong>
-                                    <span>{riskModeLabel(riskResult?.mode)}</span>
+                                <div className={`hero-stat hero-stat--compact ${riskTone(environmentalSummary?.category)}`}>
+                                    <strong>{environmentalSummary?.available ? environmentalSummary?.category ?? "n/a" : "Unavailable"}</strong>
+                                    <span>{riskModeLabel(environmentalSummary?.mode)}</span>
                                 </div>
 
                                 <div className="metric-grid">
-                                    <MetricCard label="Hotspot-like stress" value={riskResult ? riskResult.hotspot.toFixed(2) : "n/a"} />
-                                    <MetricCard label="Accumulated heat" value={riskResult ? riskResult.dhw.toFixed(2) : "n/a"} />
-                                    <MetricCard label="Used date" value={riskResult?.used_date ?? "n/a"} />
+                                    <MetricCard label="Hotspot-like stress" value={formatNumber(environmentalSummary?.hotspot)} />
+                                    <MetricCard label="Accumulated heat" value={formatNumber(environmentalSummary?.dhw)} />
+                                    <MetricCard label="Anchor Monday" value={weeklyHistory?.anchor_date ?? environmentalSummary?.used_date ?? "n/a"} />
+                                    <MetricCard label="Weeks returned" value={weeklyHistory?.available ? weeklyHistory.records.length : "n/a"} />
+                                    <MetricCard
+                                        label="NOAA history"
+                                        value={weeklyHistory?.available ? "Available" : "Unavailable"}
+                                        tone={weeklyHistory?.available ? "tone-low" : "tone-neutral"}
+                                    />
+                                    <MetricCard
+                                        label="Warnings"
+                                        value={
+                                            environmentalSummary?.warnings?.length
+                                                ? environmentalSummary.warnings.join(" | ")
+                                                : weeklyHistory?.message ?? "None"
+                                        }
+                                    />
+                                </div>
+
+                                <p className="explanation-copy">
+                                    {environmentalSummary?.available
+                                        ? environmentalSummary.explanation
+                                        : environmentalSummary?.message ?? "Loading environmental context..."}
+                                </p>
+
+                                {weeklyHistory?.available ? (
+                                    <div className="history-list">
+                                        {weeklyHistory.records.map((record) => (
+                                            <div key={record.date} className="history-row">
+                                                <strong>{record.date}</strong>
+                                                <span>{`Hotspot ${formatNumber(record.hotspot)} | DHW ${formatNumber(record.dhw)}`}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="empty-state empty-state--inline">
+                                        <strong>Weekly NOAA history unavailable.</strong>
+                                        <span>
+                                            {weeklyHistory?.message ??
+                                                "The backend could not reconstruct the weekly Monday NOAA history for this survey date."}
+                                        </span>
+                                    </div>
+                                )}
+                            </section>
+                        ) : null}
+
+                        {false ? (
+                            <section className="layer-card">
+                                <div className="section-heading section-heading--compact">
+                                    <h4>Environmental / NOAA Weekly History</h4>
+                                    <p>Weekly Monday-derived NOAA thermal history is shown separately from sparse survey observations and from model output.</p>
+                                </div>
+
+                                <div className={`hero-stat hero-stat--compact ${riskTone(environmentalSummary?.category)}`}>
+                                    <strong>{environmentalSummary?.available ? environmentalSummary?.category ?? "n/a" : "Unavailable"}</strong>
+                                    <span>{riskModeLabel(environmentalSummary?.mode ?? null)}</span>
+                                </div>
+
+                                <div className="metric-grid">
+                                    <MetricCard label="Hotspot-like stress" value={formatNumber(environmentalSummary?.hotspot)} />
+                                    <MetricCard label="Accumulated heat" value={formatNumber(environmentalSummary?.dhw)} />
+                                    <MetricCard label="Anchor Monday" value={weeklyHistory?.anchor_date ?? environmentalSummary?.used_date ?? "n/a"} />
                                     <MetricCard label="Warnings" value={riskResult?.warnings.length ? riskResult.warnings.join(" · ") : "None"} />
                                 </div>
 
@@ -770,48 +844,61 @@ export default function MapEstimateLeaflet({
                             <section className="layer-card">
                                 <div className="section-heading section-heading--compact">
                                     <h4>Model Prediction</h4>
-                                    <p>Supervised estimate of a binary bleaching event using weekly Monday NOAA history at the site-month level.</p>
+                                    <p>Supervised site-month event estimate. This is model output, not an observed bleaching value and not the NOAA history itself.</p>
                                 </div>
 
-                                <div
-                                    className="probability-ring"
-                                    style={{ ["--probability" as string]: `${Math.round((prediction?.probability ?? 0) * 100)}%` }}
-                                >
-                                    <strong>{formatProbability(prediction?.probability)}</strong>
-                                    <span>{prediction?.predicted_event ? "Above model threshold" : "Below model threshold"}</span>
-                                </div>
+                                {!modelStatus?.model_loaded ? (
+                                    <div className="empty-state empty-state--inline">
+                                        <strong>Prediction model unavailable.</strong>
+                                        <span>The backend could not load the trained model bundle, so no prediction probability was computed.</span>
+                                    </div>
+                                ) : availablePrediction ? (
+                                    <>
+                                        <div
+                                            className="probability-ring"
+                                            style={{ ["--probability" as string]: `${Math.round(availablePrediction!.probability! * 100)}%` }}
+                                        >
+                                            <strong>{formatProbability(availablePrediction!.probability!)}</strong>
+                                            <span>{availablePrediction!.predicted_event ? "Event above threshold" : "Event below threshold"}</span>
+                                        </div>
 
-                                <div className="metric-grid">
-                                    <MetricCard label="Model version" value={prediction?.model_version ?? "n/a"} />
-                                    <MetricCard label="Used date" value={prediction?.used_date ?? "n/a"} />
-                                    <MetricCard label="Prediction unit" value={prediction?.prediction_unit ?? "n/a"} />
-                                    <MetricCard
-                                        label="Weekly history"
-                                        value={
-                                            numericFeatureValue(prediction?.features_used, "weekly_history_weeks_available")?.toFixed(0) ??
-                                            "n/a"
-                                        }
-                                    />
-                                    <MetricCard
-                                        label="Decision threshold"
-                                        value={prediction?.threshold?.toFixed(2) ?? modelInfo?.decision_threshold?.toFixed(2) ?? "n/a"}
-                                    />
-                                    <MetricCard
-                                        label="Test PR-AUC"
-                                        value={modelMetrics?.candidate_results?.[selectedModelName]?.test?.pr_auc?.toFixed(3) ?? "n/a"}
-                                    />
-                                </div>
+                                        <div className="metric-grid">
+                                            <MetricCard label="Model version" value={availablePrediction!.model_version ?? "n/a"} />
+                                            <MetricCard label="Feature date" value={availablePrediction!.feature_date_used ?? availablePrediction!.used_date ?? "n/a"} />
+                                            <MetricCard label="Weekly anchor" value={availablePrediction!.weekly_anchor_date ?? "n/a"} />
+                                            <MetricCard label="Prediction unit" value={availablePrediction!.prediction_unit ?? "n/a"} />
+                                            <MetricCard label="Context source" value={predictionContextLabel(availablePrediction!.context_source)} />
+                                            <MetricCard
+                                                label="Weekly history"
+                                                value={
+                                                    numericFeatureValue(availablePrediction!.features_used, "weekly_history_weeks_available")?.toFixed(0) ??
+                                                    "n/a"
+                                                }
+                                            />
+                                            <MetricCard
+                                                label="Decision threshold"
+                                                value={availablePrediction!.threshold?.toFixed(2) ?? modelInfo?.decision_threshold?.toFixed(2) ?? "n/a"}
+                                            />
+                                            <MetricCard
+                                                label="Test PR-AUC"
+                                                value={modelMetrics?.candidate_results?.[selectedModelName]?.test?.pr_auc?.toFixed(3) ?? "n/a"}
+                                            />
+                                        </div>
 
-                                <p className="explanation-copy">
-                                    {prediction?.data_quality_warning ? `${prediction.data_quality_warning} ` : ""}
-                                    {typeof numericFeatureValue(prediction?.features_used, "weekly_missing_fraction_12w") === "number"
-                                        ? `Weekly-history missing fraction: ${formatPercent(
-                                              numericFeatureValue(prediction?.features_used, "weekly_missing_fraction_12w")! * 100
-                                          )}. `
-                                        : ""}
-                                    {prediction?.coverage_warning ??
-                                        "This model was selected over a climatology baseline, but it still weakens on held-out future years."}
-                                </p>
+                                        <p className="explanation-copy">
+                                            {availablePrediction!.coverage_notes?.join(" ") ??
+                                                "This model was selected over a climatology baseline, but it still weakens on held-out future years."}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <div className="empty-state empty-state--inline">
+                                        <strong>Prediction unavailable.</strong>
+                                        <span>
+                                            {prediction?.message ??
+                                                "A real probability was not computed for this survey date, so the UI does not label the result as below threshold."}
+                                        </span>
+                                    </div>
+                                )}
                             </section>
                         ) : null}
                     </>

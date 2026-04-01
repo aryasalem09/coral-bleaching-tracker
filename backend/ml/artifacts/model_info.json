@@ -2,6 +2,7 @@
   "available": true,
   "model_name": "weekly_history_hist_gradient_boosting",
   "model_version": "2026.03.31",
+  "trained_with_sklearn_version": "1.6.1",
   "target_definition": "binary_bleaching_event",
   "prediction_unit": "site-month",
   "feature_columns": [

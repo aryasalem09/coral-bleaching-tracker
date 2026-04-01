@@ -155,10 +155,12 @@ python3 -m backend.ml.train_model
 
 - `GET /health`
 - `GET /api/summary`
+- `GET /api/model/status`
 - `GET /api/noaa/availability`
 - `GET /api/sites?south=...&west=...&north=...&east=...&limit=...`
 - `GET /api/site/{site_id}`
 - `GET /api/site/{site_id}/observations`
+- `GET /api/site/{site_id}/analysis?date=...&prefer_live=...`
 - `GET /api/risk/info`
 - `POST /api/risk/score`
 - `GET /api/model/info`
