@@ -6,24 +6,13 @@ Coral bleaching explorer with three explicitly separated layers:
 - Environmental Stress Outlook: transparent NOAA heat-stress context
 - Bleaching Forecast: supervised probability of an observed bleaching event in the next 4 weeks
 
-The app is designed to stay honest about what is observation, what is environmental stress, and what is supervised ML output.
 
 ## Current Architecture
 
 - Frontend: Vite + React + TypeScript
 - Backend API: `backend/api.py`
 - Observed data repository: `backend/observed/repository.py`
-- Weekly NOAA availability and sampling:
-  - `backend/noaa_products.py`
-  - `backend/noaa_index.py`
-  - `backend/noaa_sampling.py`
-  - `backend/noaa.py`
-- Weekly NOAA downloader:
-  - `backend/download_noaa_weekly_mondays.py`
-- Supervised ML pipeline:
-  - `backend/ml/build_dataset.py`
-  - `backend/ml/noaa_weekly_features.py`
-  - `backend/ml/train_model.py`
+
 
 ## Data Layout
 
@@ -49,7 +38,7 @@ Model artifacts:
 - `backend/ml/artifacts/training_report.md`
 - `backend/ml/artifacts/feature_importance.csv`
 
-The raw NOAA archive is intentionally ignored by Git because the complete weekly cache is large.
+The raw NOAA archive is intentionally ignored
 
 ## NOAA Weekly Pipeline
 
@@ -65,7 +54,7 @@ Features of the downloader:
 - missing-date logging
 - manifest output with per-date and per-product status
 
-Canonical command:
+Command:
 
 ```bash
 python3 -m backend.download_noaa_weekly_mondays
@@ -80,7 +69,7 @@ python3 -m backend.download_noaa_weekly_mondays --start 2000-01-01 --end 2019-12
 
 More detail: `docs/noaa_weekly_pipeline.md`
 
-## Modeling Decision
+## Modeling 
 
 The old model was a same-period classifier at the `site-month` level.
 
@@ -163,7 +152,7 @@ python3 -m backend.ml.train_model
 - `GET /api/model/metrics`
 - `POST /api/predict`
 
-## Prediction Honesty
+## Prediction 
 
 - Observed bleaching is not model output.
 - Environmental stress is not a confirmed bleaching observation.
