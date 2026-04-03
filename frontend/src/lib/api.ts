@@ -142,6 +142,7 @@ export type PredictionResponse = {
     requested_date?: string | null;
     feature_date_used?: string;
     used_date?: string;
+    forecast_issue_date?: string;
     weekly_anchor_date?: string;
     context_source?: string;
     mode?: string;
@@ -153,6 +154,10 @@ export type PredictionResponse = {
     model_version?: string;
     target_definition?: string;
     prediction_unit?: string;
+    forecast_horizon_days?: number;
+    forecast_horizon_weeks?: number;
+    probability_meaning?: string;
+    ground_truth_definition?: string;
     input_feature_window?: string;
     coverage_notes?: string[];
     data_quality_warning?: string | null;
@@ -175,6 +180,12 @@ export type ModelInfoResponse = {
     decision_threshold?: number;
     feature_set?: string;
     model_family?: string;
+    forecast_horizon_days?: number;
+    forecast_horizon_weeks?: number;
+    feature_history_weeks?: number;
+    probability_meaning?: string;
+    ground_truth_definition?: string;
+    threshold_selection_rule?: string;
     input_feature_window?: string;
     training_data_summary?: Record<string, unknown>;
 };
@@ -303,6 +314,12 @@ export type SelectedSiteAnalysisResponse = {
         decision_threshold?: number;
         feature_set?: string;
         model_family?: string;
+        forecast_horizon_days?: number;
+        forecast_horizon_weeks?: number;
+        feature_history_weeks?: number;
+        probability_meaning?: string;
+        ground_truth_definition?: string;
+        threshold_selection_rule?: string;
         input_feature_window?: string;
     };
     data_availability: {

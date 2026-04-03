@@ -28,6 +28,7 @@ dist-ssr/
 # IDE
 ####################
 .idea/
+.claude/
 *.iml
 .vscode/*
 !.vscode/extensions.json

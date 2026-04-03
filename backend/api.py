@@ -117,6 +117,16 @@ def _serialize_observations(frame: pd.DataFrame) -> list[dict[str, Any]]:
     return [_serialize_observation_row(row) for _, row in frame.iterrows()]
 
 
+def _iso_date(value: Any) -> str | None:
+    if value is None:
+        return None
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        text = str(value).strip()
+        return text or None
+    return parsed.date().isoformat()
+
+
 def _resolve_selected_observed_date(site_id: str, records: list[dict[str, Any]], requested_date: str | None) -> str | None:
     if requested_date:
         return requested_date
@@ -183,7 +193,7 @@ def _resolve_dynamic_features(
 def _prediction_features(site: dict[str, Any], dynamic: dict[str, Any]) -> dict[str, Any]:
     used_date = dynamic.get("used_date") or dynamic.get("date")
     if not used_date:
-        raise HTTPException(status_code=500, detail="Prediction context is missing a usable date.")
+        raise HTTPException(status_code=500, detail="Forecast context is missing a usable date.")
 
     month = datetime.fromisoformat(str(used_date)).month
     angle = (month - 1) * 2 * math.pi / 12.0
@@ -202,15 +212,15 @@ def _prediction_features(site: dict[str, Any], dynamic: dict[str, Any]) -> dict[
 
 
 def _prediction_status_label(predicted_event: bool) -> str:
-    return "event_above_threshold" if predicted_event else "event_below_threshold"
+    return "forecast_above_threshold" if predicted_event else "forecast_below_threshold"
 
 
 def _short_prediction_unavailable_message(model_loaded: bool, reason: str) -> str:
     if not model_loaded:
-        return "Prediction model unavailable. The backend could not load the trained model bundle."
+        return "Forecast unavailable because the backend could not load the trained model."
     if reason == "context_unavailable":
-        return "Prediction unavailable for this site/date because the required model-ready environmental context could not be assembled."
-    return "Prediction unavailable right now."
+        return "Forecast unavailable for this site/date because the required 12-week heat-stress history could not be assembled."
+    return "Forecast unavailable right now."
 
 
 def _build_environmental_summary(site: dict[str, Any], selected_date: str | None, *, prefer_live: bool) -> dict[str, Any]:
@@ -356,10 +366,14 @@ def _build_prediction_payload(
         "model_version": model_runtime.get("model_version"),
         "prediction_unit": load_model_info().get("prediction_unit"),
         "target_definition": load_model_info().get("target_definition"),
+        "forecast_horizon_days": load_model_info().get("forecast_horizon_days"),
+        "forecast_horizon_weeks": load_model_info().get("forecast_horizon_weeks"),
+        "probability_meaning": load_model_info().get("probability_meaning"),
+        "ground_truth_definition": load_model_info().get("ground_truth_definition"),
     }
 
     if not selected_date:
-        base_payload["message"] = "Select an observed survey date to request a model estimate."
+        base_payload["message"] = "Select an observed survey date to request a 4-week forecast."
         return base_payload
 
     if not model_runtime["model_loaded"]:
@@ -369,9 +383,9 @@ def _build_prediction_payload(
         )
         return base_payload
 
-    context_source = "historical_model_row"
+    context_source = "historical_forecast_row"
     context_notes: list[str] = [
-        "Prediction unit is site-month. The selected survey date is used to choose the matching site-month context, not to make a day-level forecast."
+        "This forecast uses only site details and NOAA heat history available on or before the forecast issue date."
     ]
     dynamic: dict[str, Any] | None = None
 
@@ -391,7 +405,7 @@ def _build_prediction_payload(
                 exc,
             )
             context_notes.append(
-                "Live weekly NOAA files were not assembled cleanly for this request, so the backend fell back to the archived model-ready site-month row when possible."
+                "Live NOAA history was unavailable for this request, so the backend fell back to the closest saved forecast-ready row when possible."
             )
 
     if dynamic is None:
@@ -408,14 +422,14 @@ def _build_prediction_payload(
             )
             return base_payload
 
-    feature_date_used = dynamic.get("used_date") or dynamic.get("date")
+    feature_date_used = _iso_date(dynamic.get("used_date") or dynamic.get("date"))
     if feature_date_used and feature_date_used != selected_date:
         context_notes.append(
-            f"The selected survey date {selected_date} mapped to feature date {feature_date_used} because the model uses the nearest eligible site-month context at or before the survey date."
+            f"The selected survey date {selected_date} maps to forecast issue date {feature_date_used} because the model forecasts from the nearest eligible Monday on or before that survey date."
         )
-    if context_source == "historical_model_row":
+    if context_source == "historical_forecast_row":
         context_notes.append(
-            "This estimate used archived weekly-derived features already stored in the processed site-month dataset."
+            "This forecast used archived feature rows that were built from past NOAA heat history and paired with future survey outcomes."
         )
 
     features = _prediction_features(site, dynamic)
@@ -426,7 +440,7 @@ def _build_prediction_payload(
         return {
             **base_payload,
             "status": "execution_error",
-            "message": "Prediction model unavailable. The trained model could not execute in the current backend environment.",
+            "message": "Forecast unavailable because the trained model could not execute in the current backend environment.",
         }
 
     weekly_history_weeks_available = features.get("weekly_history_weeks_available")
@@ -440,7 +454,8 @@ def _build_prediction_payload(
         "display_name": site["display_name"],
         "feature_date_used": feature_date_used,
         "used_date": feature_date_used,
-        "weekly_anchor_date": dynamic.get("weekly_anchor_date") or dynamic.get("used_date"),
+        "forecast_issue_date": feature_date_used,
+        "weekly_anchor_date": _iso_date(dynamic.get("weekly_anchor_date") or dynamic.get("used_date")),
         "context_source": context_source,
         "mode": dynamic.get("mode"),
         "model_loaded": True,
@@ -451,7 +466,11 @@ def _build_prediction_payload(
         "model_version": result.model_version,
         "target_definition": result.target_definition,
         "prediction_unit": result.prediction_unit,
-        "input_feature_window": "Static site factors plus weekly Monday NOAA heat-stress history aligned to the nearest prior Monday and aggregated into a site-month estimate.",
+        "forecast_horizon_days": result.forecast_horizon_days,
+        "forecast_horizon_weeks": result.forecast_horizon_weeks,
+        "probability_meaning": result.probability_meaning,
+        "ground_truth_definition": result.ground_truth_definition,
+        "input_feature_window": "Static site factors plus 12 weeks of NOAA Monday heat-stress history ending on the forecast issue date.",
         "coverage_notes": context_notes,
         "data_quality_warning": None,
         "coverage_warning": " ".join(context_notes),
@@ -491,6 +510,12 @@ def _build_model_metadata() -> dict[str, Any]:
         "decision_threshold": info.get("decision_threshold"),
         "feature_set": info.get("feature_set"),
         "model_family": info.get("model_family"),
+        "forecast_horizon_days": info.get("forecast_horizon_days"),
+        "forecast_horizon_weeks": info.get("forecast_horizon_weeks"),
+        "feature_history_weeks": info.get("feature_history_weeks"),
+        "probability_meaning": info.get("probability_meaning"),
+        "ground_truth_definition": info.get("ground_truth_definition"),
+        "threshold_selection_rule": info.get("threshold_selection_rule"),
         "input_feature_window": info.get("input_feature_window"),
     }
 
@@ -670,7 +695,7 @@ def risk_info() -> dict[str, Any]:
         "fallback_behavior": (
             "The API uses local weekly Monday NOAA files when available and moves backward to the nearest valid Monday "
             "on or before the requested date. If that weekly context is unavailable, it falls back to the newest valid "
-            "historical site-month environmental record."
+            "historical survey-backed environmental record."
         ),
     }
 

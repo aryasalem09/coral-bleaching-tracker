@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 import unittest
 from unittest import mock
 
@@ -38,10 +39,17 @@ class PredictionApiTests(unittest.TestCase):
         self.assertIsInstance(payload["probability"], float)
         self.assertIsInstance(payload["predicted_event"], bool)
         self.assertIsInstance(payload["threshold"], float)
-        self.assertEqual(payload["prediction_unit"], "site-month")
-        self.assertIn(payload["context_source"], {"historical_model_row", "weekly_noaa_history"})
+        self.assertEqual(payload["prediction_unit"], "site-anchor-date")
+        self.assertEqual(payload["forecast_horizon_weeks"], 4)
+        self.assertIn("next 4 weeks", payload["probability_meaning"])
+        self.assertIn(payload["context_source"], {"historical_forecast_row", "weekly_noaa_history"})
         self.assertIn("feature_date_used", payload)
         self.assertIn("coverage_notes", payload)
+        self.assertLessEqual(
+            date.fromisoformat(payload["forecast_issue_date"]),
+            date.fromisoformat(self.sample_date),
+        )
+        self.assertEqual(payload["weekly_anchor_date"], payload["forecast_issue_date"])
 
     @mock.patch(
         "backend.api.get_model_runtime_status",
@@ -49,9 +57,9 @@ class PredictionApiTests(unittest.TestCase):
             "status": "invalid",
             "ready": False,
             "model_loaded": False,
-            "message": "Prediction model unavailable in the current backend environment.",
+            "message": "Forecast model unavailable in the current backend environment.",
             "artifact_path": "backend/ml/artifacts/bleaching_event_model.joblib",
-            "model_version": "2026.03.31",
+            "model_version": "2026.04.01",
             "sklearn_version": "1.6.1",
             "trained_with_sklearn_version": "1.6.1",
             "loader_error": "boom",
@@ -66,7 +74,7 @@ class PredictionApiTests(unittest.TestCase):
         payload = response.json()
         self.assertFalse(payload["available"])
         self.assertEqual(payload["status"], "model_unavailable")
-        self.assertIn("Prediction model unavailable", payload["message"])
+        self.assertIn("Forecast unavailable", payload["message"])
         self.assertNotIn("probability", payload)
 
     @mock.patch(

@@ -7,7 +7,7 @@
     opacity: 0;
     transform: translate3d(-100px, -100px, 0);
     transition: opacity 140ms ease;
-    mix-blend-mode: multiply;
+    mix-blend-mode: screen;
 }
 
 .target-cursor[data-visible="true"] {
@@ -25,11 +25,11 @@ body.target-cursor-active *::after {
     position: absolute;
     top: 0;
     left: 0;
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 999px;
-    background: rgba(14, 159, 140, 0.92);
-    box-shadow: 0 0 0 5px rgba(14, 159, 140, 0.12);
+    background: rgba(0, 212, 170, 0.9);
+    box-shadow: 0 0 12px rgba(0, 212, 170, 0.3);
     transform: translate(-50%, -50%);
     transition: transform 120ms ease;
 }
@@ -40,10 +40,9 @@ body.target-cursor-active *::after {
     left: 0;
     width: 44px;
     height: 44px;
-    border-radius: 18px;
-    border: 2px solid rgba(14, 159, 140, 0.72);
-    background:
-        linear-gradient(135deg, rgba(14, 159, 140, 0.06), rgba(242, 165, 65, 0.08));
+    border-radius: 14px;
+    border: 1.5px solid rgba(0, 212, 170, 0.5);
+    background: linear-gradient(135deg, rgba(0, 212, 170, 0.04), rgba(255, 107, 107, 0.03));
     transform: translate3d(-22px, -22px, 0);
     transition:
         width 180ms ease,
@@ -54,9 +53,8 @@ body.target-cursor-active *::after {
 }
 
 .target-cursor[data-hover="true"] .target-cursor__frame {
-    border-color: rgba(242, 165, 65, 0.9);
-    background:
-        linear-gradient(135deg, rgba(242, 165, 65, 0.14), rgba(14, 159, 140, 0.08));
+    border-color: rgba(255, 107, 107, 0.7);
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.08), rgba(0, 212, 170, 0.04));
 }
 
 @media (prefers-reduced-motion: reduce) {

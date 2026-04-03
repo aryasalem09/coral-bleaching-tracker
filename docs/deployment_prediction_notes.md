@@ -17,11 +17,11 @@
 ## NOAA Weekly History Behavior
 
 - The repo does not commit the full raw Monday NOAA cache.
-- Prediction for historical observed dates no longer depends on that raw cache because the processed site-month dataset already contains model-ready weekly-derived features.
+- Forecasts for historical observed dates no longer depend on that raw cache because the processed forecast dataset already contains saved model-ready feature rows.
 - Weekly NOAA history display now works from:
   1. local Monday NOAA cache when present
   2. on-demand Monday NOAA fetches when files are missing
-- First-time weekly-history requests for a date window can therefore be slower than prediction requests.
+- First-time weekly-history requests for a date window can therefore be slower than forecast requests.
 
 ## Relevant Environment Variables
 

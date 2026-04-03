@@ -79,18 +79,24 @@ def get_site_weekly_feature_context(
     index: NoaaAvailabilityIndex | None = None,
 ) -> dict[str, Any]:
     availability = index or get_noaa_weekly_index()
+    requested_anchor = _monday_on_or_before(requested_date)
     if requested_date:
         anchor_date = availability.nearest_previous_monday(requested_date)
     else:
         dates = availability.all_available_monday_dates()
         anchor_date = dates[-1] if dates else None
 
-    fallback_anchor = _monday_on_or_before(requested_date)
-    if anchor_date is None and fallback_anchor:
-        download_report = _try_fill_history_window(fallback_anchor)
+    if requested_anchor and anchor_date != requested_anchor:
+        download_report = _try_fill_history_window(requested_anchor)
         if download_report is not None:
             availability = get_noaa_weekly_index()
-            anchor_date = availability.nearest_previous_monday(requested_date or fallback_anchor) or fallback_anchor
+            anchor_date = availability.nearest_previous_monday(requested_anchor) or anchor_date
+
+    if anchor_date is None and requested_anchor:
+        download_report = _try_fill_history_window(requested_anchor)
+        if download_report is not None:
+            availability = get_noaa_weekly_index()
+            anchor_date = availability.nearest_previous_monday(requested_date or requested_anchor) or requested_anchor
 
     if anchor_date is None:
         raise FileNotFoundError("No weekly NOAA Monday files are available at or before the requested date.")
@@ -105,7 +111,7 @@ def get_site_weekly_feature_context(
         raise FileNotFoundError("No weekly NOAA history was available for the requested site-date.")
     if len(history_dates) < HISTORY_WEEKS:
         raise FileNotFoundError(
-            f"A full contiguous {HISTORY_WEEKS}-week weekly NOAA history is required for prediction, "
+            f"A full contiguous {HISTORY_WEEKS}-week weekly NOAA history is required for forecasting, "
             f"but only {len(history_dates)} weeks were available."
         )
 
@@ -131,20 +137,23 @@ def get_site_weekly_feature_context(
             + "; ".join(sampling_failures)
         )
 
+    # Forecast features are defined on the Monday issue date itself.
+    # The selected survey date is only used to choose the nearest eligible
+    # Monday anchor, never to shift the feature row into the same week later.
     feature_row = build_weekly_feature_row(
-        observation_date=pd.to_datetime(requested_date or anchor_date, errors="raise"),
+        observation_date=pd.to_datetime(anchor_date, errors="raise"),
         anchor_date=anchor_date,
         history_dates=history_dates,
         sampled_history=sampled_history,
     )
     if int(feature_row["weekly_history_weeks_available"]) < HISTORY_WEEKS:
         raise FileNotFoundError(
-            f"A full contiguous {HISTORY_WEEKS}-week weekly NOAA history is required for prediction, "
+            f"A full contiguous {HISTORY_WEEKS}-week weekly NOAA history is required for forecasting, "
             f"but only {feature_row['weekly_history_weeks_available']} weeks were assembled."
         )
     if int(feature_row["weekly_missing_internal_weeks"]) > 0:
         raise FileNotFoundError(
-            "Prediction is unavailable because the weekly NOAA history has internal gaps and no longer matches "
+            "Forecasting is unavailable because the weekly NOAA history has internal gaps and no longer matches "
             "the production training coverage."
         )
     return {

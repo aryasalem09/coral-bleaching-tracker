@@ -1,7 +1,7 @@
 .rb-counter {
     position: relative;
     display: inline-flex;
-    color: #e8f4ff;
+    color: var(--teal, #00d4aa);
 }
 
 .rb-counter__digits {
@@ -9,13 +9,14 @@
     align-items: center;
     gap: var(--counter-gap);
     overflow: hidden;
-    border-radius: 10px;
-    padding: 0 0.2rem;
+    border-radius: 6px;
+    padding: 0 0.1rem;
     font-size: var(--counter-font-size);
     line-height: 1;
-    font-weight: 700;
+    font-weight: 800;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.01em;
+    letter-spacing: -0.02em;
+    font-family: "Syne", "Manrope", sans-serif;
 }
 
 .rb-counter__digit {
@@ -43,15 +44,15 @@
     position: absolute;
     left: 0;
     right: 0;
-    height: 10px;
+    height: 6px;
 }
 
 .rb-counter__fade--top {
     top: 0;
-    background: linear-gradient(180deg, rgba(7, 26, 46, 0.75), rgba(7, 26, 46, 0));
+    background: linear-gradient(180deg, rgba(8, 14, 26, 0.9), transparent);
 }
 
 .rb-counter__fade--bottom {
     bottom: 0;
-    background: linear-gradient(0deg, rgba(7, 26, 46, 0.75), rgba(7, 26, 46, 0));
+    background: linear-gradient(0deg, rgba(8, 14, 26, 0.9), transparent);
 }

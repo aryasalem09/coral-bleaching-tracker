@@ -31,7 +31,7 @@ That distinction matters:
 
 - observed bleaching remains observation-derived
 - weekly NOAA inputs are environmental covariates
-- the model still predicts a binary event probability at the site-month level
+- the production model now predicts a binary event probability for the next 4 weeks after the forecast issue date
 
 ## Residual Limitations
 
@@ -40,11 +40,11 @@ That distinction matters:
 - early observations before NOAA weekly coverage begins cannot be aligned to the weekly feature pipeline
 - a small number of candidate rows are still lost when no valid NOAA ocean grid cell can be sampled near the recorded site coordinate
 
-Current weekly feature audit:
+Current legacy feature-store audit:
 
 - candidate site-month rows examined: `19,676`
 - rows aligned successfully to weekly NOAA history: `19,643`
 - rows excluded because no prior NOAA Monday existed: `28`
 - rows excluded because no valid NOAA ocean grid cell could be sampled: `5`
 
-These limitations are surfaced in the training report and API/UI copy rather than hidden.
+Those counts describe the archived weekly feature store that the forecast dataset is built from. The production target is now forward-looking even though the feature-source rows were originally assembled at the site-month level.

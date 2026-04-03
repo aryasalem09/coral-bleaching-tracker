@@ -1,0 +1,217 @@
+/* ═══════════════════════════════════════════════
+   ONBOARDING OVERLAY
+   Full-screen immersive tutorial scene
+   ═══════════════════════════════════════════════ */
+
+.onboarding-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: grid;
+    place-items: center;
+    background:
+        radial-gradient(ellipse at 20% 50%, rgba(0, 212, 170, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 30%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(255, 107, 107, 0.04) 0%, transparent 50%),
+        linear-gradient(180deg, #040810 0%, #060c18 50%, #080e1e 100%);
+    overflow: hidden;
+}
+
+/* Floating particles */
+.onboarding-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.onboarding-particle {
+    position: absolute;
+    border-radius: 50%;
+    background: #00d4aa;
+    animation: particle-float linear infinite;
+}
+
+@keyframes particle-float {
+    0% {
+        transform: translateY(0) translateX(0);
+        opacity: 0;
+    }
+    10% {
+        opacity: var(--particle-opacity, 0.3);
+    }
+    90% {
+        opacity: var(--particle-opacity, 0.3);
+    }
+    100% {
+        transform: translateY(-100px) translateX(30px);
+        opacity: 0;
+    }
+}
+
+/* Content container */
+.onboarding-content {
+    position: relative;
+    z-index: 2;
+    width: 90%;
+    max-width: 520px;
+}
+
+/* Skip button */
+.onboarding-skip {
+    position: fixed;
+    top: 24px;
+    right: 28px;
+    z-index: 9001;
+    padding: 8px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(140, 180, 210, 0.12);
+    background: rgba(10, 18, 32, 0.6);
+    color: rgba(200, 214, 224, 0.6);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(12px);
+    transition: all 250ms ease;
+    cursor: pointer;
+}
+
+.onboarding-skip:hover {
+    border-color: rgba(0, 212, 170, 0.3);
+    color: #00d4aa;
+    background: rgba(0, 212, 170, 0.06);
+}
+
+/* Step content */
+.onboarding-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+    padding: 8px 0 12px;
+}
+
+.onboarding-step__icon {
+    margin-bottom: 4px;
+    animation: icon-pulse 3s ease-in-out infinite;
+}
+
+@keyframes icon-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.08); opacity: 1; }
+}
+
+.onboarding-step__title {
+    font-family: "Syne", "DM Sans", sans-serif;
+    font-size: clamp(1.2rem, 3vw, 1.6rem);
+    font-weight: 700;
+    color: #f0f6fa;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.onboarding-step__body {
+    color: rgba(200, 214, 224, 0.7);
+    font-size: 0.9rem;
+    line-height: 1.65;
+    max-width: 420px;
+}
+
+/* Hints */
+.onboarding-step__hint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: rgba(0, 212, 170, 0.06);
+    border: 1px solid rgba(0, 212, 170, 0.12);
+    font-size: 0.8rem;
+    color: rgba(200, 214, 224, 0.6);
+}
+
+.onboarding-hint-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #00d4aa;
+    box-shadow: 0 0 12px rgba(0, 212, 170, 0.5);
+    animation: pulse-ring 1.4s ease-out infinite;
+    flex-shrink: 0;
+}
+
+/* Layer preview badges */
+.onboarding-layers-preview {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.onboarding-layer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid;
+    background: rgba(10, 18, 32, 0.5);
+    font-size: 0.8rem;
+    color: rgba(200, 214, 224, 0.7);
+    font-weight: 500;
+}
+
+.onboarding-layer__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Stats row on final step */
+.onboarding-stat-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 8px;
+}
+
+.onboarding-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.onboarding-stat span {
+    color: rgba(200, 214, 224, 0.45);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* Override stepper dark card for onboarding context */
+.onboarding-content .rb-stepper-card {
+    background: rgba(8, 14, 26, 0.65);
+    border-color: rgba(140, 180, 210, 0.08);
+    backdrop-filter: blur(20px);
+    box-shadow:
+        0 24px 80px rgba(0, 0, 0, 0.5),
+        0 0 60px rgba(0, 212, 170, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.onboarding-content .rb-stepper-next {
+    padding: 0.5rem 1.4rem;
+    font-size: 0.88rem;
+}
+
+@media (max-width: 640px) {
+    .onboarding-layers-preview {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .onboarding-stat-row {
+        gap: 16px;
+    }
+}

@@ -7,17 +7,17 @@
 
 .rb-stepper-card {
     width: 100%;
-    border-radius: 1.25rem;
-    border: 1px solid rgba(232, 244, 255, 0.16);
-    background: linear-gradient(145deg, rgba(10, 37, 60, 0.84), rgba(6, 22, 38, 0.9));
-    box-shadow: 0 18px 38px rgba(3, 11, 24, 0.5);
+    border-radius: var(--radius-xl, 20px);
+    border: 1px solid var(--border, rgba(120, 170, 210, 0.07));
+    background: var(--bg-card, rgba(10, 16, 28, 0.85));
+    box-shadow: var(--shadow-lg, 0 24px 80px rgba(0, 0, 0, 0.6));
 }
 
 .rb-stepper-indicator-row {
     display: flex;
     width: 100%;
     align-items: center;
-    padding: 1.1rem 1.35rem;
+    padding: 1rem 1.2rem;
 }
 
 .rb-stepper-indicator-group {
@@ -26,9 +26,7 @@
     flex: 1;
 }
 
-.rb-stepper-indicator-group:last-child {
-    flex: 0 0 auto;
-}
+.rb-stepper-indicator-group:last-child { flex: 0 0 auto; }
 
 .rb-stepper-indicator {
     border: none;
@@ -40,34 +38,36 @@
 
 .rb-stepper-indicator-inner {
     display: flex;
-    height: 1.95rem;
-    width: 1.95rem;
+    height: 1.7rem;
+    width: 1.7rem;
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    font-weight: 700;
-    box-shadow: 0 0 0 1px rgba(193, 228, 255, 0.13);
+    font-weight: 800;
+    box-shadow: 0 0 0 1px rgba(120, 170, 210, 0.08);
 }
 
 .rb-stepper-active-dot {
-    width: 0.7rem;
-    height: 0.7rem;
+    width: 0.55rem;
+    height: 0.55rem;
     border-radius: 999px;
-    background: #041423;
+    background: var(--bg-void, #030608);
 }
 
 .rb-stepper-number {
-    font-size: 0.82rem;
+    font-size: 0.72rem;
+    color: var(--text-muted, #3d5468);
+    font-family: "Syne", sans-serif;
 }
 
 .rb-stepper-connector {
     position: relative;
-    margin: 0 0.5rem;
-    height: 0.16rem;
+    margin: 0 0.4rem;
+    height: 2px;
     flex: 1;
     overflow: hidden;
     border-radius: 999px;
-    background: rgba(116, 174, 208, 0.22);
+    background: rgba(120, 170, 210, 0.08);
 }
 
 .rb-stepper-connector-inner {
@@ -78,63 +78,49 @@
 }
 
 .rb-stepper-check-icon {
-    width: 1rem;
-    height: 1rem;
-    color: #041423;
+    width: 0.85rem;
+    height: 0.85rem;
+    color: var(--bg-void, #030608);
 }
 
-.rb-stepper-content {
-    position: relative;
-    overflow: hidden;
-}
+.rb-stepper-content { position: relative; overflow: hidden; }
+.rb-stepper-step { padding: 0.5rem 1.2rem 0.2rem; }
+.rb-stepper-footer { padding: 0.3rem 1.2rem 0.9rem; }
 
-.rb-stepper-step {
-    padding: 0.65rem 1.35rem 0.25rem;
-}
-
-.rb-stepper-footer {
-    padding: 0.5rem 1.35rem 1.15rem;
-}
-
-.rb-stepper-nav {
-    margin-top: 1.8rem;
-    display: flex;
-}
-
-.rb-stepper-nav--spread {
-    justify-content: space-between;
-}
-
-.rb-stepper-nav--end {
-    justify-content: flex-end;
-}
+.rb-stepper-nav { margin-top: 1.2rem; display: flex; }
+.rb-stepper-nav--spread { justify-content: space-between; }
+.rb-stepper-nav--end { justify-content: flex-end; }
 
 .rb-stepper-back {
-    border: 1px solid rgba(232, 244, 255, 0.2);
-    border-radius: 10px;
-    padding: 0.38rem 0.7rem;
-    color: rgba(232, 244, 255, 0.84);
-    background: rgba(10, 42, 68, 0.65);
+    border: 1px solid var(--border, rgba(120, 170, 210, 0.07));
+    border-radius: var(--radius-sm, 7px);
+    padding: 0.35rem 0.7rem;
+    color: var(--text-secondary, #6e8899);
+    background: var(--bg-card, rgba(10, 16, 28, 0.85));
+    font-size: 0.8rem;
+    font-weight: 600;
     transition: all 180ms ease;
 }
 
 .rb-stepper-back:hover {
-    border-color: rgba(232, 244, 255, 0.34);
-    background: rgba(16, 56, 87, 0.74);
+    border-color: var(--border-strong, rgba(120, 170, 210, 0.14));
+    color: var(--text, #c8d6e0);
 }
 
 .rb-stepper-next {
-    border: 1px solid rgba(95, 211, 211, 0.6);
+    border: 1px solid rgba(0, 212, 170, 0.3);
     border-radius: 999px;
-    padding: 0.42rem 0.98rem;
-    color: #03111d;
-    font-weight: 700;
+    padding: 0.4rem 1.1rem;
+    color: var(--bg-void, #030608);
+    font-weight: 800;
+    font-size: 0.82rem;
+    font-family: "Syne", sans-serif;
     letter-spacing: -0.01em;
-    background: linear-gradient(105deg, #1fa6a6, #68c9ef);
+    background: linear-gradient(105deg, #00d4aa, #3b82f6);
     transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
 .rb-stepper-next:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 18px rgba(40, 175, 197, 0.3);
+    box-shadow: 0 6px 20px rgba(0, 212, 170, 0.25);
 }

@@ -1,37 +1,47 @@
 # Prediction Verification
 
-Generated: `2026-04-01T03:11:31.866159+00:00`
+Generated: `2026-04-02T08:31:34.562542+00:00`
 
 ## Model Status
 
 - model_loaded: `True`
-- model_version: `2026.03.31`
+- model_version: `2026.04.01`
 - sklearn_version: `1.6.1`
 - trained_with_sklearn_version: `1.6.1`
 - artifact_path: `C:\Users\aryas\PycharmProjects\CoralBleachingTracker\backend\ml\artifacts\bleaching_event_model.joblib`
 
-## Sample Prediction Checks
+## Forecast Definition
 
-| Site ID | Site | Country | Date tested | Prediction worked | Probability | Feature date used | Context source | Notes |
+- target_definition: `observed_bleaching_event_in_next_4_weeks`
+- prediction_unit: `site-anchor-date`
+- forecast_horizon_weeks: `4`
+- probability_meaning: `Probability that at least one direct observed bleaching event will be recorded for this site in the next 4 weeks.`
+- ground_truth_definition: `Ground truth comes from direct observed bleaching records. NOAA heat data are predictors, not labels.`
+
+## Sample Forecast Checks
+
+| Site ID | Site | Country | Survey date | Forecast worked | Probability | Forecast issue date | Context source | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 3579 | Bora Bora | French Polynesia | 2020-03-12 | yes | 0.3632 | 2020-03-12 | historical_model_row | Archived site-month prediction succeeded. |
-| 3031 | Dahab | Egypt | 2019-12-27 | yes | 0.0495 | 2019-12-27 | historical_model_row | Archived site-month prediction succeeded. |
-| 1318 | Alice Town | Bahamas | 2019-08-24 | yes | 0.9814 | 2019-08-24 | historical_model_row | Archived site-month prediction succeeded. |
-| 6703 | Curacao | Netherlands Antilles | 2012-04-10 | yes | 0.1083 | 2012-04-10 | historical_model_row | Archived site-month prediction succeeded. |
-| 6505 | Aventuras | Mexico | 2003-09-18 | yes | 0.5808 | 2003-09-18 | historical_model_row | Archived site-month prediction succeeded. |
+| 15445 | Siaba Besar (Sector 1) | Indonesia | 2020-08-15 | yes | 0.1374 | 2020-08-10 | historical_forecast_row | Archived forecast row succeeded. |
+| 15444 | Mawan (Sector 1) | Indonesia | 2020-08-15 | yes | 0.2326 | 2020-08-10 | historical_forecast_row | Archived forecast row succeeded. |
+| 3591 | Bora Bora | French Polynesia | 2020-05-30 | yes | 0.5430 | 2020-05-25 | historical_forecast_row | Archived forecast row succeeded. |
+| 15443 | Pengah Kecil (Sector 1) SW Side | Indonesia | 2020-03-17 | yes | 0.4144 | 2020-03-16 | historical_forecast_row | Archived forecast row succeeded. |
+| 4215 | North Lombok Regency | Indonesia | 2020-03-17 | yes | 0.6973 | 2020-03-16 | historical_forecast_row | Archived forecast row succeeded. |
 
 ## Selected-Site Payload Check
 
-- Site checked: `3579 - Bora Bora` on `2020-03-12`
-- selected_observed_date: `2020-03-12`
-- observed timeline records: `31`
+- Site checked: `15445 - Siaba Besar (Sector 1)` on `2020-08-15`
+- selected_observed_date: `2020-08-15`
+- observed timeline records: `3`
 - observed timeline wording note: `Observed survey records are sparse and irregular. They are not the same thing as weekly NOAA environmental history.`
 - weekly NOAA history available: `True`
 - weekly NOAA history records: `12`
-- prediction available inside payload: `True`
+- forecast available inside payload: `True`
+- forecast issue date: `2020-08-10`
+- probability meaning: `Probability that at least one direct observed bleaching event will be recorded for this site in the next 4 weeks.`
 
 ## Edge Notes
 
-- Most sites in the cleaned observed dataset still have only one survey-backed date; that is source sparsity, not a missing weekly NOAA timeline.
-- Full weekly NOAA history depends on reconstructing Monday NOAA files. The backend now attempts on-demand cache fills, so the first weekly-history request for a date window can be slower than archived prediction lookups.
-- Prediction checks intentionally use `prefer_live=false` so they verify the archived model-ready site-month path that powers historical observed dates without waiting on NOAA downloads.
+- Most sites still have sparse survey timelines. The forecast dataset only uses issue dates with at least one direct survey in the next 4 weeks, so missing surveys are not forced into negative labels.
+- Full weekly NOAA history depends on reconstructing Monday NOAA files. The backend can still fall back to saved forecast rows for historical survey dates when live NOAA history is unavailable.
+- Verification uses `prefer_live=false` for sample API calls so it checks the archived forecast path that supports historical survey dates without waiting on NOAA downloads.

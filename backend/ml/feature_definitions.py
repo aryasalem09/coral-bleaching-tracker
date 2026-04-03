@@ -5,11 +5,21 @@ from collections.abc import Iterable
 
 import pandas as pd
 
-TARGET_COLUMN = "target_bleaching_event"
-PERCENT_TARGET_COLUMN = "observed_percent_bleaching"
-SEVERITY_COLUMN = "observed_severity_category"
-PRODUCTION_TARGET_NAME = "binary_bleaching_event"
-PREDICTION_UNIT = "site-month"
+TARGET_COLUMN = "target_bleaching_event_next_4w"
+OBSERVED_PERCENT_COLUMN = "observed_percent_bleaching"
+OBSERVED_SEVERITY_COLUMN = "observed_severity_category"
+PRODUCTION_TARGET_NAME = "observed_bleaching_event_in_next_4_weeks"
+PREDICTION_UNIT = "site-anchor-date"
+FEATURE_HISTORY_WEEKS = 12
+FORECAST_HORIZON_WEEKS = 4
+FORECAST_HORIZON_DAYS = 28
+FORECAST_PROBABILITY_MEANING = (
+    "Probability that at least one direct observed bleaching event will be recorded for this site in the next 4 weeks."
+)
+FORECAST_GROUND_TRUTH_SUMMARY = (
+    "Ground truth comes from direct observed bleaching records. NOAA heat data are predictors, not labels."
+)
+THRESHOLD_SELECTION_RULE = "Best validation F1 on the 4-week forecast target."
 
 STATIC_NUMERIC_FEATURES = [
     "latitude",
@@ -20,10 +30,6 @@ STATIC_NUMERIC_FEATURES = [
     "depth_mean_m",
 ]
 STATIC_CATEGORICAL_FEATURES = ["exposure"]
-LEGACY_DYNAMIC_NUMERIC_FEATURES = [
-    "observed_same_month_hotspot_like",
-    "observed_same_month_dhw_like",
-]
 WEEKLY_DYNAMIC_NUMERIC_FEATURES = [
     "hotspot_like",
     "dhw_like",
@@ -74,13 +80,10 @@ WEEKLY_DYNAMIC_NUMERIC_FEATURES = [
     "weekly_history_span_days",
     "weekly_missing_internal_weeks",
 ]
-DYNAMIC_NUMERIC_FEATURES = WEEKLY_DYNAMIC_NUMERIC_FEATURES
 TEMPORAL_FEATURES = ["month_sin", "month_cos"]
 
-NUMERIC_FEATURES = STATIC_NUMERIC_FEATURES + DYNAMIC_NUMERIC_FEATURES + TEMPORAL_FEATURES
+NUMERIC_FEATURES = STATIC_NUMERIC_FEATURES + WEEKLY_DYNAMIC_NUMERIC_FEATURES + TEMPORAL_FEATURES
 ALL_FEATURES = NUMERIC_FEATURES + STATIC_CATEGORICAL_FEATURES
-LEGACY_NUMERIC_FEATURES = STATIC_NUMERIC_FEATURES + LEGACY_DYNAMIC_NUMERIC_FEATURES + TEMPORAL_FEATURES
-LEGACY_FEATURES = LEGACY_NUMERIC_FEATURES + STATIC_CATEGORICAL_FEATURES
 
 
 def add_temporal_features(df: pd.DataFrame, date_column: str = "date") -> pd.DataFrame:

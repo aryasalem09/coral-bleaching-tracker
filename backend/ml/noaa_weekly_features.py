@@ -242,8 +242,8 @@ def add_weekly_noaa_history_features(dataset: pd.DataFrame) -> tuple[pd.DataFram
         "lag_offsets_weeks": list(LAG_OFFSETS),
         "rolling_windows_weeks": list(ROLLING_WINDOWS),
         "temporal_alignment": (
-            "Each site-month row uses the nearest available Monday on or before the observed site-date as the current "
-            "weekly anchor. Lagged and rolling NOAA features use only Mondays at or before that anchor date."
+            "Each legacy site-month feature row uses the nearest available Monday on or before the observed site-date "
+            "as the current weekly anchor. Lagged and rolling NOAA features use only Mondays at or before that anchor date."
         ),
     }
     NOAA_WEEKLY_FEATURE_AUDIT_PATH.parent.mkdir(parents=True, exist_ok=True)

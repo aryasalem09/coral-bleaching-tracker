@@ -1,17 +1,24 @@
-[
-  {
-    "split": "test",
-    "count": 1666,
-    "positive_rate": 0.34993997599039617
-  },
-  {
-    "split": "train",
-    "count": 9710,
-    "positive_rate": 0.5707518022657054
-  },
-  {
-    "split": "validation",
-    "count": 3141,
-    "positive_rate": 0.5717924227952881
-  }
-]
+{
+  "dataset": "observed_site_forecast_4w_dataset",
+  "feature_history_weeks": 12,
+  "forecast_horizon_days": 28,
+  "forecast_horizon_weeks": 4,
+  "rows_total": 12764,
+  "split_summary": [
+    {
+      "split": "test",
+      "count": 1495,
+      "positive_rate": 0.3464882943143813
+    },
+    {
+      "split": "train",
+      "count": 8524,
+      "positive_rate": 0.5673392773345847
+    },
+    {
+      "split": "validation",
+      "count": 2745,
+      "positive_rate": 0.5657559198542805
+    }
+  ]
+}

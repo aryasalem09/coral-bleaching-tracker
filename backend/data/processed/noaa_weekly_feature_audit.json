@@ -51,5 +51,5 @@
     8,
     12
   ],
-  "temporal_alignment": "Each site-month row uses the nearest available Monday on or before the observed site-date as the current weekly anchor. Lagged and rolling NOAA features use only Mondays at or before that anchor date."
+  "temporal_alignment": "Each legacy site-month feature row uses the nearest available Monday on or before the observed site-date as the current weekly anchor. Lagged and rolling NOAA features use only Mondays at or before that anchor date."
 }

@@ -17,9 +17,9 @@ const METRIC_ITEMS = [
     },
     {
         id: "metric-risk-probability",
-        title: "Model Event Probability",
-        description: "Supervised model output from 0 to 1 estimating the chance of a site-month bleaching event.",
-        whyMatters: "This is useful only when it stays clearly separate from observed bleaching and transparent risk scoring.",
+        title: "4-Week Forecast",
+        description: "Supervised model output from 0 to 1 estimating the chance that bleaching will be observed in the next 4 weeks.",
+        whyMatters: "This is useful only when it stays clearly separate from observed bleaching and transparent heat-stress context.",
     },
     {
         id: "metric-snap-distance",
@@ -49,10 +49,10 @@ export default function HeroIntro() {
     return (
         <section className="hero-intro glass-panel">
             <div className="hero-intro__content">
-                <h2 className="hero-intro__title">Explore observed bleaching, environmental stress, and model output worldwide</h2>
+                <h2 className="hero-intro__title">Explore observed bleaching, environmental stress, and a 4-week forecast worldwide</h2>
                 <p className="hero-intro__description">
                     This tool separates survey-backed bleaching observations, thermal-stress outlooks, and supervised
-                    model output so those three ideas are never blurred together.
+                    forecast output so those three ideas are never blurred together.
                 </p>
 
                 <div className="hero-intro__meta">

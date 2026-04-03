@@ -18,6 +18,7 @@ OBSERVED_RAW_CANDIDATES = [
 OBSERVED_RAW_PATH = next((path for path in OBSERVED_RAW_CANDIDATES if path.exists()), OBSERVED_RAW_CANDIDATES[0])
 OBSERVED_SITE_DATE_PATH = PROCESSED_DIR / "observed_site_date_clean.csv"
 OBSERVED_SITE_MONTH_PATH = PROCESSED_DIR / "observed_site_month_dataset.csv"
+FORECAST_DATASET_PATH = PROCESSED_DIR / "observed_site_forecast_4w_dataset.csv"
 OBSERVED_SITE_CATALOG_PATH = PROCESSED_DIR / "observed_site_catalog.csv"
 OBSERVED_CONFLICT_LOG_PATH = PROCESSED_DIR / "observed_conflicts.csv"
 OBSERVED_EXCLUSION_LOG_PATH = PROCESSED_DIR / "observed_exclusions.csv"
@@ -41,7 +42,7 @@ NOAA_WEEKLY_MANIFEST_PATH = RAW_DIR / "noaa_manifest_weekly_mondays.json"
 NOAA_WEEKLY_FEATURE_AUDIT_PATH = PROCESSED_DIR / "noaa_weekly_feature_audit.json"
 
 APP_VERSION = os.getenv("CBT_VERSION", "2.0.0")
-MODEL_VERSION = os.getenv("CBT_MODEL_VERSION", "2026.03.31")
+MODEL_VERSION = os.getenv("CBT_MODEL_VERSION", "2026.04.01")
 XR_ENGINE = os.getenv("XR_ENGINE", "h5netcdf")
 # The repo does not commit the full raw NOAA Monday cache. Defaulting to on-demand
 # fetch keeps fresh deployments functional while still allowing operators to disable

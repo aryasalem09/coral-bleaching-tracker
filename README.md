@@ -4,7 +4,7 @@ Coral bleaching explorer with three explicitly separated layers:
 
 - Observed Bleaching: cleaned historical site observations
 - Environmental Stress Outlook: transparent NOAA heat-stress context
-- Model Prediction: supervised `site-month` bleaching-event probability
+- Bleaching Forecast: supervised probability of an observed bleaching event in the next 4 weeks
 
 The app is designed to stay honest about what is observation, what is environmental stress, and what is supervised ML output.
 
@@ -32,6 +32,7 @@ Processed observed/modeling assets:
 - `backend/data/processed/observed_site_date_clean.csv`
 - `backend/data/processed/observed_site_catalog.csv`
 - `backend/data/processed/observed_site_month_dataset.csv`
+- `backend/data/processed/observed_site_forecast_4w_dataset.csv`
 - `backend/data/processed/noaa_weekly_feature_audit.json`
 
 Raw NOAA weekly-Monday cache:
@@ -81,27 +82,22 @@ More detail: `docs/noaa_weekly_pipeline.md`
 
 ## Modeling Decision
 
-The production target remains a binary bleaching event at the `site-month` level.
+The old model was a same-period classifier at the `site-month` level.
 
-Why it stays that way:
+The current production model is a real forecast:
 
-- the observed labels are not a trustworthy weekly supervision stream
-- source programs use heterogeneous percent-bleaching conventions
-- a weekly target would overclaim temporal precision
-
-What changed instead:
-
-- the model now uses weekly Monday NOAA history aligned to the nearest prior Monday on or before each observed site-date
-- lagged, rolling, and trend features are constructed without future leakage
-- the training loop compares the legacy same-month formulation against the new weekly-history formulation
-- production prediction only runs when a full contiguous 12-week NOAA history can be assembled, because that is the support the trained model actually saw
+- Forecast issue date: Monday anchor date `t`
+- Feature window: 12 weeks of NOAA Monday heat-stress history ending at `t`
+- Target: whether a direct observed bleaching event will be recorded during the next 4 weeks
+- Selection metric: validation PR-AUC
+- Threshold rule: best validation F1
 
 Current selected production model:
 
-- `weekly_history_hist_gradient_boosting`
-- held-out test AUROC: `0.666`
-- held-out test PR-AUC: `0.516`
-- weekly-history versus legacy same-month HGB PR-AUC gain: `+0.048`
+- `forecast_4w_hist_gradient_boosting`
+- held-out test AUROC: `0.671`
+- held-out test PR-AUC: `0.523`
+- climatology test PR-AUC: `0.346`
 
 More detail: `docs/modeling_decision.md`
 
@@ -172,7 +168,10 @@ python3 -m backend.ml.train_model
 - Observed bleaching is not model output.
 - Environmental stress is not a confirmed bleaching observation.
 - Prediction is only returned by `POST /api/predict`.
-- Prediction remains a same-month `site-month` event estimate, not a long-range forecast.
+- Ground truth comes from observed bleaching records, not NOAA itself.
+- NOAA heat data are predictors, not labels.
+- Prediction means the chance that bleaching will be observed in the next 4 weeks after the forecast issue date.
+- The forecast issue date is the Monday on or before the selected survey date, and the label window starts strictly after that Monday.
 - The backend does not substitute a threshold heuristic and call it ML prediction.
 - If the required contiguous 12-week weekly NOAA history is missing for a requested site/date, the API returns prediction unavailable.
 

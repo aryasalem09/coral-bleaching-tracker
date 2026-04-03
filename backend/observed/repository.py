@@ -197,7 +197,7 @@ def find_historical_context(
         return None
 
     row = valid.iloc[0].to_dict()
-    row["mode"] = "historical_observed" if require_model_eligible else "historical_environmental"
+    row["mode"] = "historical_forecast" if require_model_eligible else "historical_environmental"
     row["used_date"] = pd.to_datetime(row["date"]).date().isoformat()
     return row
 

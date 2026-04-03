@@ -1,0 +1,19 @@
+.shiny-text {
+    background: linear-gradient(
+        120deg,
+        rgba(255, 255, 255, 0.45) 0%,
+        rgba(0, 212, 170, 0.9) 40%,
+        rgba(255, 255, 255, 0.45) 50%,
+        rgba(0, 212, 170, 0.9) 100%
+    );
+    background-size: calc(100% + var(--shimmer-width, 120px)) 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shiny-slide var(--shimmer-speed, 3s) linear infinite;
+}
+
+@keyframes shiny-slide {
+    0% { background-position-x: calc(-1 * var(--shimmer-width, 120px)); }
+    100% { background-position-x: calc(100% + var(--shimmer-width, 120px)); }
+}

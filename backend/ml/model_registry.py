@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def _artifact_missing_message() -> str:
-    return "Model artifact is missing. Run `python3 -m backend.ml.train_model` to rebuild it."
+    return "Forecast model artifact is missing. Run `python3 -m backend.ml.train_model` to rebuild it."
 
 
 def clear_model_registry_cache() -> None:
@@ -60,7 +60,7 @@ def get_model_runtime_status() -> dict[str, Any]:
                 "status": "invalid",
                 "ready": False,
                 "model_loaded": False,
-                "message": "Prediction model unavailable in the current backend environment.",
+                "message": "Forecast model unavailable in the current backend environment.",
                 "loader_error": str(exc),
             }
         )
@@ -74,7 +74,7 @@ def get_model_runtime_status() -> dict[str, Any]:
                 "status": "invalid",
                 "ready": False,
                 "model_loaded": False,
-                "message": "Prediction model artifact is incomplete and must be rebuilt.",
+                "message": "Forecast model artifact is incomplete and must be rebuilt.",
                 "loader_error": f"Missing required bundle keys: {missing}",
             }
         )

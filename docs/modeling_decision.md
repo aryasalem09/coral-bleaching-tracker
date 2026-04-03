@@ -1,73 +1,75 @@
-# Modeling Decision
+# Forecast Modeling Decision
 
-## Production Target
+## Old Model
 
-The production target remains a binary bleaching event at the `site-month` level.
+The old production model was not a true forecast.
 
-This project did **not** switch to a weekly target because the observed bleaching labels are not a reliable weekly supervision stream. The observed data are sparse site-dates drawn from heterogeneous source programs, so a weekly target would overstate label precision.
+It used a `site-month` row and predicted whether that same site-month had any observed bleaching. Even though the weekly NOAA features were anchored to the nearest earlier Monday, the target still came from the same observed period as the row.
 
-## Why Weekly NOAA Inputs Still Help
+## New Model
 
-Weekly NOAA history materially improves the input formulation without changing the target definition.
+The new production model is a forward-looking forecast.
 
-The model now uses:
+- Forecast issue date: Monday anchor date `t`
+- Feature window: 12 weeks of NOAA Monday HotSpot and DHW history ending at `t`, plus static site factors
+- Forecast horizon: next 4 weeks
+- Prediction target: whether a direct observed bleaching event will be recorded for that site during `(t, t + 4 weeks]`
 
-- current weekly Monday HotSpot and DHW
-- lagged weekly Monday HotSpot and DHW
-- rolling weekly means, maxima, minima, and trend slopes
-- weekly coverage indicators
-- static reef/site covariates
-- seasonal month encoding
+This is a probabilistic forecast, not a confirmed observation.
 
-This preserves a defensible target while giving the model much richer thermal-stress context than a single same-month snapshot.
+## Ground Truth
 
-## Temporal Alignment
-
-For each observed `site-month` row:
-
-1. find the nearest available Monday on or before the observed site-date
-2. treat that Monday as the current weekly anchor
-3. build lagged and rolling features using only that Monday and earlier Mondays
-
-This prevents future leakage.
+- Ground truth comes from direct observed bleaching records, not NOAA itself.
+- NOAA heat data are predictors, not labels.
+- Label `1` means at least one direct survey in the next 4 weeks reported bleaching above 0%.
+- Label `0` means there was at least one direct survey in the next 4 weeks and none reported bleaching.
+- Rows without any direct survey in the next 4 weeks are excluded from training and evaluation so missing surveys are not treated as negative labels.
 
 ## Leakage Controls
 
-- Weekly NOAA features are never pulled from after the observed site-date.
-- Model selection still uses held-out future years.
-- Metrics are published with an explicit note that the primary split is time-held-out, not fully site-independent.
-- A separate new-site subset is retained as an additional stress test.
+- Features use only information available on or before the Monday forecast issue date.
+- The label window starts strictly after the anchor date.
+- No future NOAA values are used in the predictive path.
+- No observation-derived features from the future window are used as predictors.
+- Train and validation splits use a 4-week purge window around the split boundaries so labels do not spill into later periods.
 
-## Comparison Strategy
+## Split Strategy
 
-Training compares:
+- Train: earliest forecast issue dates through `2012-12-03`
+- Validation: `2013-01-01` through `2016-12-03`
+- Test: after `2016-12-31`
+- Dates near the train and validation cutoffs are excluded because their 4-week label windows would overlap the next split.
 
-- legacy same-month feature candidates
-- weekly-history feature candidates
-- climatology baseline
+## Model Selection
 
-The selected production model is whichever candidate wins on validation PR-AUC, with test and new-site metrics saved in `backend/ml/artifacts/metrics.json`.
+Candidates compared on the forecast-safe dataset:
 
-## Current Result
+- Logistic regression
+- HistGradientBoosting
+- Climatology baseline
 
-Latest training selected:
+Selection metric: validation PR-AUC.
 
-- `weekly_history_hist_gradient_boosting`
-- test AUROC: `0.666`
-- test PR-AUC: `0.516`
-- test F1: `0.551`
-- new-site test PR-AUC: `0.550`
+Threshold rule: best validation F1.
 
-Against the legacy same-month HGB baseline, the weekly-history formulation improved:
+## Selected Model
 
-- PR-AUC by `+0.048`
-- AUROC by `+0.028`
-- Brier score by `-0.011`
+- Model: `forecast_4w_hist_gradient_boosting`
+- Validation PR-AUC: `0.871`
+- Validation AUROC: `0.820`
+- Test PR-AUC: `0.523`
+- Test AUROC: `0.671`
+- Test F1: `0.541`
+- Test precision: `0.417`
+- Test recall: `0.770`
+- Test Brier score: `0.221`
+- Climatology test PR-AUC: `0.346`
 
-## Runtime Decision
+The forecast model beats the trivial climatology baseline on held-out test PR-AUC and AUROC, but the scores are still moderate. It should be treated as a rough risk forecast, not a definitive event detector.
 
-Prediction uses the current trained artifact only.
+## Limitations
 
-The backend does **not** replace the model with a heuristic threshold system. If the weekly NOAA feature window required by the model cannot be assembled for a requested site/date, the API returns prediction unavailable.
-
-Because every eligible training row had a complete contiguous 12-week NOAA history, the runtime now requires that same 12-week support at inference time instead of extrapolating from shorter or gapped windows.
+- Survey coverage is sparse and irregular, so the forecast dataset only includes issue dates with direct survey coverage in the next 4 weeks.
+- Many sites appear in multiple time splits. That is acceptable for time-ordered forecasting, but it is not a fully site-independent evaluation.
+- The live forecast path still requires a full contiguous 12-week NOAA history for the requested issue date.
+- The production path currently serves the 4-week horizon only. The code is structured so a longer horizon can be added later, but it is not exposed as a user-facing prediction yet.

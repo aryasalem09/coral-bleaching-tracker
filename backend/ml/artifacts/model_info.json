@@ -1,10 +1,10 @@
 {
   "available": true,
-  "model_name": "weekly_history_hist_gradient_boosting",
-  "model_version": "2026.03.31",
+  "model_name": "forecast_4w_hist_gradient_boosting",
+  "model_version": "2026.04.01",
   "trained_with_sklearn_version": "1.6.1",
-  "target_definition": "binary_bleaching_event",
-  "prediction_unit": "site-month",
+  "target_definition": "observed_bleaching_event_in_next_4_weeks",
+  "prediction_unit": "site-anchor-date",
   "feature_columns": [
     "latitude",
     "longitude",
@@ -66,16 +66,45 @@
   ],
   "validation_metric_used_for_selection": "pr_auc",
   "decision_threshold": 0.25,
-  "feature_set": "weekly_history",
   "model_family": "hist_gradient_boosting",
-  "input_feature_window": "Weekly Monday NOAA history aligned to the nearest prior Monday for each site-month row",
+  "forecast_horizon_days": 28,
+  "forecast_horizon_weeks": 4,
+  "feature_history_weeks": 12,
+  "probability_meaning": "Probability that at least one direct observed bleaching event will be recorded for this site in the next 4 weeks.",
+  "ground_truth_definition": "Ground truth comes from direct observed bleaching records. NOAA heat data are predictors, not labels.",
+  "threshold_selection_rule": "Best validation F1 on the 4-week forecast target.",
+  "input_feature_window": "Static site factors plus 12 weeks of NOAA Monday heat-stress history ending on the forecast issue date.",
   "training_data_summary": {
-    "rows": 14517,
-    "train_rows": 9710,
-    "validation_rows": 3141,
-    "test_rows": 1666,
-    "date_min": "1986-06-15",
-    "date_max": "2020-08-15",
-    "positive_rate": 0.5456361507198457
+    "rows": 12764,
+    "train_rows": 8524,
+    "validation_rows": 2745,
+    "test_rows": 1495,
+    "date_min": "1986-06-09",
+    "date_max": "2020-08-10",
+    "reference_observed_date_min": "1986-06-15",
+    "reference_observed_date_max": "2020-08-15",
+    "positive_rate": 0.541131306800376,
+    "split_class_balance": {
+      "train": {
+        "rows": 8524,
+        "positive_rate": 0.5673392773345847,
+        "positive_rows": 4836,
+        "negative_rows": 3688
+      },
+      "validation": {
+        "rows": 2745,
+        "positive_rate": 0.5657559198542805,
+        "positive_rows": 1553,
+        "negative_rows": 1192
+      },
+      "test": {
+        "rows": 1495,
+        "positive_rate": 0.3464882943143813,
+        "positive_rows": 518,
+        "negative_rows": 977
+      }
+    },
+    "future_observation_window_mean": 1.0164525227201504,
+    "future_positive_window_mean": 0.5463804450015669
   }
 }

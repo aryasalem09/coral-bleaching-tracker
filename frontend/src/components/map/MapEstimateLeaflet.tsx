@@ -20,6 +20,10 @@ import {
     useMapEvents,
 } from "react-leaflet";
 import LayerExplainer from "../help/LayerExplainer";
+import SpotlightCard from "../ui/SpotlightCard";
+import ShinyText from "../ui/ShinyText";
+import GradientText from "../ui/GradientText";
+import ClickSpark from "../ui/ClickSpark";
 import { useCapabilityTier } from "../../hooks/useCapabilityTier";
 import {
     ApiError,
@@ -66,8 +70,8 @@ type MapViewport = {
     zoom: number;
 };
 
-const TILE_URL = "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png";
-const LABEL_URL = "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png";
+const TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png";
+const LABEL_URL = "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png";
 
 const LAYER_META: Record<
     LayerKey,
@@ -79,17 +83,17 @@ const LAYER_META: Record<
 > = {
     observed: {
         title: "Observed Bleaching",
-        subtitle: "Survey-backed site outcomes",
+        subtitle: "Survey results",
         accent: "#c34b32",
     },
     risk: {
-        title: "Environmental Stress Outlook",
-        subtitle: "Transparent thermal-stress score",
+        title: "Heat Stress",
+        subtitle: "NOAA weekly heat data",
         accent: "#b9971c",
     },
     prediction: {
-        title: "Model Prediction",
-        subtitle: "Supervised site-month event probability",
+        title: "Forecast",
+        subtitle: "Chance in next 4 weeks",
         accent: "#2563eb",
     },
 };
@@ -137,16 +141,16 @@ function riskTone(category: string | null | undefined): string {
 }
 
 function riskModeLabel(mode: string | null | undefined): string {
-    if (mode === "noaa_weekly_monday") return "Weekly NOAA context";
-    if (mode === "historical_environmental") return "Historical aligned context";
-    if (mode === "historical_observed") return "Historical observed context";
-    return "Context status unknown";
+    if (mode === "noaa_weekly_monday") return "NOAA weekly data";
+    if (mode === "historical_environmental") return "Saved heat data";
+    if (mode === "historical_observed") return "Saved site data";
+    return "Source unknown";
 }
 
 function predictionContextLabel(source: string | null | undefined): string {
-    if (source === "historical_model_row") return "Archived site-month feature row";
-    if (source === "weekly_noaa_history") return "Weekly NOAA history";
-    return "Prediction context";
+    if (source === "historical_forecast_row") return "Saved forecast row";
+    if (source === "weekly_noaa_history") return "NOAA weekly history";
+    return "Source unknown";
 }
 
 function severityTone(category: string | null | undefined): string {
@@ -220,10 +224,10 @@ const SiteMarkerLayer = memo(function SiteMarkerLayer({
                         pane="site-points"
                         radius={isSelected ? radius + 1.8 : radius}
                         pathOptions={{
-                            color: isSelected ? "#0f172a" : accent,
-                            weight: isSelected ? 2 : 1.2,
-                            fillColor: isSelected ? accent : "#f8fafc",
-                            fillOpacity: isSelected ? 0.94 : 0.78,
+                            color: isSelected ? "#00d4aa" : accent,
+                            weight: isSelected ? 2.5 : 1.2,
+                            fillColor: isSelected ? accent : accent,
+                            fillOpacity: isSelected ? 0.95 : 0.55,
                         }}
                         eventHandlers={{ click: () => onSelect(site) }}
                     >
@@ -241,10 +245,10 @@ const SiteMarkerLayer = memo(function SiteMarkerLayer({
 
 function MetricCard({ label, value, tone = "tone-neutral" }: { label: string; value: ReactNode; tone?: string }) {
     return (
-        <div className={`metric-card ${tone}`}>
+        <SpotlightCard className={`metric-card ${tone}`}>
             <span>{label}</span>
             <strong>{value}</strong>
-        </div>
+        </SpotlightCard>
     );
 }
 
@@ -298,11 +302,12 @@ export default function MapEstimateLeaflet({
     );
     const environmentalSummary = siteAnalysis?.environmental_noaa.stress_outlook ?? null;
     const weeklyHistory = siteAnalysis?.environmental_noaa.weekly_history ?? null;
-    const riskResult = environmentalSummary as any;
+    const riskResult = environmentalSummary;
+    const showLegacyRiskPanel = false;
     const availablePrediction = prediction && prediction.available ? prediction : null;
     const layerAccent = LAYER_META[activeLayer].accent;
     const markerRadius = markerRadiusForTier(tier, mapZoom);
-    const selectedModelName = modelInfo?.model_name ?? modelMetrics?.selected_model ?? "hist_gradient_boosting";
+    const selectedModelName = modelInfo?.model_name ?? modelMetrics?.selected_model ?? "forecast_4w_hist_gradient_boosting";
 
     useEffect(() => {
         if (serverStatus === "down") return;
@@ -450,7 +455,7 @@ export default function MapEstimateLeaflet({
                     setError("");
                     if (analysisPayload.environmental_noaa.weekly_history.available) {
                         setAnalysisNotice(
-                            `Survey date remains ${selectedDate}. Weekly NOAA history uses Monday anchor ${analysisPayload.environmental_noaa.weekly_history.anchor_date ?? "n/a"}.`
+                            `Selected survey date: ${selectedDate}. Heat data is matched to Monday ${analysisPayload.environmental_noaa.weekly_history.anchor_date ?? "n/a"}.`
                         );
                     } else if (analysisPayload.environmental_noaa.weekly_history.message) {
                         setAnalysisNotice(analysisPayload.environmental_noaa.weekly_history.message);
@@ -463,7 +468,7 @@ export default function MapEstimateLeaflet({
                     if (analysisRequestRef.current !== requestId || isAbortError(error)) return;
                     if (error instanceof ApiError && error.status === 404) {
                         setSiteAnalysis(null);
-                        setAnalysisNotice("No environmental context was available for the selected survey date.");
+                        setAnalysisNotice("No heat data was available for the selected survey date.");
                         return;
                     }
                     if (error instanceof ApiError && error.status >= 500) onServerDown();
@@ -492,11 +497,20 @@ export default function MapEstimateLeaflet({
                 setPrediction(predictionPayload);
                 setError("");
                 if (predictionPayload.available) {
+                    const issueDate =
+                        predictionPayload.forecast_issue_date ??
+                        predictionPayload.feature_date_used ??
+                        predictionPayload.used_date ??
+                        "n/a";
                     setAnalysisNotice(
-                        `Prediction keeps survey date ${selectedDate} fixed and uses ${predictionPayload.context_source === "historical_model_row" ? "the archived site-month feature row" : "weekly NOAA history"} for model input.`
+                        `Selected survey date: ${selectedDate}. Forecast issue date: ${issueDate}. Features came from ${
+                            predictionPayload.context_source === "historical_forecast_row"
+                                ? "a saved forecast row"
+                                : "NOAA weekly history"
+                        }.`
                     );
                 } else {
-                    setAnalysisNotice(predictionPayload.message ?? "Prediction model unavailable.");
+                    setAnalysisNotice(predictionPayload.message ?? "Forecast unavailable.");
                 }
                 onServerReachable();
             })
@@ -504,7 +518,7 @@ export default function MapEstimateLeaflet({
                 if (analysisRequestRef.current !== requestId || isAbortError(error)) return;
                 if (error instanceof ApiError && error.status === 404) {
                     setPrediction(null);
-                    setAnalysisNotice("No model-ready site-month context exists at or before the selected survey date.");
+                    setAnalysisNotice("No forecast-ready context exists at or before the selected survey date.");
                     return;
                 }
                 if (error instanceof ApiError && error.status >= 500) onServerDown();
@@ -536,11 +550,16 @@ export default function MapEstimateLeaflet({
             <section className="map-panel glass-panel">
                 <div className="panel-header">
                     <div>
-                        <p className="eyebrow">Map-first explorer</p>
-                        <h2>Observed reef sites with on-demand risk and model layers.</h2>
+                        <p className="eyebrow">
+                            <ShinyText shimmerWidth={80} speed={4}>Map Explorer</ShinyText>
+                        </p>
+                        <h2>
+                            <GradientText as="span" from="#edf4f8" via="#00d4aa" to="#edf4f8" animate speed={8}>
+                                Explore reef sites
+                            </GradientText>
+                        </h2>
                         <p className="muted-copy">
-                            The initial load stays light by fetching only visible sites. Click a point to load its
-                            observed timeline and then inspect risk or model output for the selected date.
+                            Click a point to open survey results, heat data, and the 4-week forecast.
                         </p>
                     </div>
 
@@ -563,16 +582,17 @@ export default function MapEstimateLeaflet({
                 <div className="toolbar-row">
                     <div className="layer-toggle" role="tablist" aria-label="Data layers">
                         {(Object.keys(LAYER_META) as LayerKey[]).map((layer) => (
-                            <button
-                                key={layer}
-                                type="button"
-                                className={layer === activeLayer ? "layer-button layer-button--active" : "layer-button"}
-                                onClick={() => setActiveLayer(layer)}
-                                style={{ ["--layer-accent" as string]: LAYER_META[layer].accent }}
-                            >
-                                <span>{LAYER_META[layer].title}</span>
-                                <small>{LAYER_META[layer].subtitle}</small>
-                            </button>
+                            <ClickSpark key={layer} sparkColor={LAYER_META[layer].accent} sparkCount={6} sparkRadius={20}>
+                                <button
+                                    type="button"
+                                    className={layer === activeLayer ? "layer-button layer-button--active" : "layer-button"}
+                                    onClick={() => setActiveLayer(layer)}
+                                    style={{ ["--layer-accent" as string]: LAYER_META[layer].accent }}
+                                >
+                                    <span>{LAYER_META[layer].title}</span>
+                                    <small>{LAYER_META[layer].subtitle}</small>
+                                </button>
+                            </ClickSpark>
                         ))}
                     </div>
 
@@ -617,15 +637,15 @@ export default function MapEstimateLeaflet({
                         />
                     </MapContainer>
 
-                    {loadingSites ? <div className="map-badge">Loading visible sites…</div> : null}
+                    {loadingSites ? <div className="map-badge">Loading visible sites...</div> : null}
 
                     <div className="map-legend">
                         <div className="legend-row">
                             <span className="legend-dot" style={{ background: layerAccent }} />
-                            Click to load the site timeline and analysis panel.
+                            Click a point to open the site details.
                         </div>
                         <div className="legend-row legend-row--muted">
-                            Initial fetch returns viewport-limited site summaries only.
+                            Only sites in the current map view are loaded.
                         </div>
                     </div>
                 </div>
@@ -633,12 +653,22 @@ export default function MapEstimateLeaflet({
 
             <aside className="insight-panel glass-panel">
                 <div className="section-heading">
-                    <p className="eyebrow">Selected Site</p>
-                    <h3>{siteMeta?.display_name ?? "Choose a reef site"}</h3>
+                    <p className="eyebrow">
+                        <ShinyText shimmerWidth={60} speed={5}>Selected Site</ShinyText>
+                    </p>
+                    <h3>
+                        {siteMeta ? (
+                            <GradientText as="span" from="#00d4aa" to="#3b82f6">
+                                {siteMeta.display_name}
+                            </GradientText>
+                        ) : (
+                            "Choose a reef site"
+                        )}
+                    </h3>
                     <p className="muted-copy">
                         {siteMeta
-                            ? `${siteMeta.ecoregion_name ?? "Unknown ecoregion"} · ${siteMeta.country_name ?? "Unknown country"}`
-                            : "Pick a site on the map to load survey records, NOAA weekly context, and model output without blurring those layers together."}
+                            ? `${siteMeta.ecoregion_name ?? "Unknown ecoregion"} - ${siteMeta.country_name ?? "Unknown country"}`
+                            : "Click a point on the map to load survey records, heat data, and the forecast."}
                     </p>
                 </div>
 
@@ -667,8 +697,8 @@ export default function MapEstimateLeaflet({
 
                         <section className="timeline-card">
                             <div className="section-heading section-heading--compact">
-                                <h4>Observed Survey Timeline</h4>
-                                <p>Survey-backed dates only. This list is sparse and irregular, and it is not the weekly NOAA history.</p>
+                                <h4>Survey Timeline</h4>
+                                <p>These dates come from surveys at this site. They are not the weekly NOAA heat record.</p>
                             </div>
 
                             <div className="timeline-controls">
@@ -712,8 +742,8 @@ export default function MapEstimateLeaflet({
                             </div>
                             <p className="timeline-note">
                                 {sortedObservationDates.length === 1
-                                    ? "This site currently has one cleaned survey-backed observation date. That is normal for sparse monitoring and does not mean weekly environmental data is missing."
-                                    : "Use the Environmental tab for weekly Monday NOAA history and the Prediction tab for model output. The selected survey date remains fixed across both."}
+                                    ? "This site has one cleaned survey date. That does not mean the weekly heat data is missing."
+                                    : "Use Heat Stress for the weekly NOAA record and Forecast for the model-based 4-week estimate. The survey date stays the same in both."}
                             </p>
                         </section>
 
@@ -721,7 +751,7 @@ export default function MapEstimateLeaflet({
                             <section className="layer-card">
                                 <div className="section-heading section-heading--compact">
                                     <h4>Observed Bleaching</h4>
-                                    <p>Recorded outcome for the selected site-date.</p>
+                                    <p>Measured survey result for this site and date.</p>
                                 </div>
 
                                 <div className="hero-stat">
@@ -740,12 +770,12 @@ export default function MapEstimateLeaflet({
                                         value={selectedObservation?.has_conflict_history ? "Averaged duplicates" : "Clean"}
                                     />
                                     <MetricCard
-                                        label="Label origin"
+                                        label="Source type"
                                         value={
                                             selectedObservation?.is_direct_observation
-                                                ? "Direct observation"
+                                                ? "Direct survey"
                                                 : selectedObservation?.is_derived_label
-                                                  ? "Comment-derived"
+                                                  ? "From comments"
                                                   : "Unknown"
                                         }
                                     />
@@ -761,8 +791,8 @@ export default function MapEstimateLeaflet({
                         {activeLayer === "risk" ? (
                             <section className="layer-card">
                                 <div className="section-heading section-heading--compact">
-                                    <h4>Environmental / NOAA Weekly History</h4>
-                                    <p>Weekly Monday-derived NOAA thermal history is shown separately from sparse survey observations and from model output.</p>
+                                    <h4>Heat Stress / NOAA History</h4>
+                                    <p>This shows weekly NOAA heat data matched to the selected survey date.</p>
                                 </div>
 
                                 <div className={`hero-stat hero-stat--compact ${riskTone(environmentalSummary?.category)}`}>
@@ -771,17 +801,17 @@ export default function MapEstimateLeaflet({
                                 </div>
 
                                 <div className="metric-grid">
-                                    <MetricCard label="Hotspot-like stress" value={formatNumber(environmentalSummary?.hotspot)} />
+                                    <MetricCard label="Current hotspot" value={formatNumber(environmentalSummary?.hotspot)} />
                                     <MetricCard label="Accumulated heat" value={formatNumber(environmentalSummary?.dhw)} />
-                                    <MetricCard label="Anchor Monday" value={weeklyHistory?.anchor_date ?? environmentalSummary?.used_date ?? "n/a"} />
-                                    <MetricCard label="Weeks returned" value={weeklyHistory?.available ? weeklyHistory.records.length : "n/a"} />
+                                    <MetricCard label="Matched Monday" value={weeklyHistory?.anchor_date ?? environmentalSummary?.used_date ?? "n/a"} />
+                                    <MetricCard label="Weeks shown" value={weeklyHistory?.available ? weeklyHistory.records.length : "n/a"} />
                                     <MetricCard
-                                        label="NOAA history"
+                                        label="History status"
                                         value={weeklyHistory?.available ? "Available" : "Unavailable"}
                                         tone={weeklyHistory?.available ? "tone-low" : "tone-neutral"}
                                     />
                                     <MetricCard
-                                        label="Warnings"
+                                        label="Notes"
                                         value={
                                             environmentalSummary?.warnings?.length
                                                 ? environmentalSummary.warnings.join(" | ")
@@ -810,18 +840,18 @@ export default function MapEstimateLeaflet({
                                         <strong>Weekly NOAA history unavailable.</strong>
                                         <span>
                                             {weeklyHistory?.message ??
-                                                "The backend could not reconstruct the weekly Monday NOAA history for this survey date."}
+                                                "The app could not build the weekly NOAA heat record for this survey date."}
                                         </span>
                                     </div>
                                 )}
                             </section>
                         ) : null}
 
-                        {false ? (
+                        {showLegacyRiskPanel ? (
                             <section className="layer-card">
                                 <div className="section-heading section-heading--compact">
-                                    <h4>Environmental / NOAA Weekly History</h4>
-                                    <p>Weekly Monday-derived NOAA thermal history is shown separately from sparse survey observations and from model output.</p>
+                                    <h4>Heat Stress / NOAA History</h4>
+                                    <p>This shows weekly NOAA heat data matched to the selected survey date.</p>
                                 </div>
 
                                 <div className={`hero-stat hero-stat--compact ${riskTone(environmentalSummary?.category)}`}>
@@ -830,27 +860,27 @@ export default function MapEstimateLeaflet({
                                 </div>
 
                                 <div className="metric-grid">
-                                    <MetricCard label="Hotspot-like stress" value={formatNumber(environmentalSummary?.hotspot)} />
+                                    <MetricCard label="Current hotspot" value={formatNumber(environmentalSummary?.hotspot)} />
                                     <MetricCard label="Accumulated heat" value={formatNumber(environmentalSummary?.dhw)} />
                                     <MetricCard label="Anchor Monday" value={weeklyHistory?.anchor_date ?? environmentalSummary?.used_date ?? "n/a"} />
-                                    <MetricCard label="Warnings" value={riskResult?.warnings.length ? riskResult.warnings.join(" · ") : "None"} />
+                                    <MetricCard label="Warnings" value={riskResult?.warnings?.length ? riskResult.warnings.join(" | ") : "None"} />
                                 </div>
 
-                                <p className="explanation-copy">{riskResult?.explanation ?? "Loading environmental stress context…"}</p>
+                                <p className="explanation-copy">{riskResult?.explanation ?? "Loading heat data..."}</p>
                             </section>
                         ) : null}
 
                         {activeLayer === "prediction" ? (
                             <section className="layer-card">
                                 <div className="section-heading section-heading--compact">
-                                    <h4>Model Prediction</h4>
-                                    <p>Supervised site-month event estimate. This is model output, not an observed bleaching value and not the NOAA history itself.</p>
+                                    <h4>Bleaching Forecast</h4>
+                                    <p>Chance that bleaching will be observed in the next 4 weeks. This is not a measured value.</p>
                                 </div>
 
                                 {!modelStatus?.model_loaded ? (
                                     <div className="empty-state empty-state--inline">
-                                        <strong>Prediction model unavailable.</strong>
-                                        <span>The backend could not load the trained model bundle, so no prediction probability was computed.</span>
+                                        <strong>Forecast unavailable.</strong>
+                                        <span>The backend could not load the trained model, so no estimate was made.</span>
                                     </div>
                                 ) : availablePrediction ? (
                                     <>
@@ -859,17 +889,18 @@ export default function MapEstimateLeaflet({
                                             style={{ ["--probability" as string]: `${Math.round(availablePrediction!.probability! * 100)}%` }}
                                         >
                                             <strong>{formatProbability(availablePrediction!.probability!)}</strong>
-                                            <span>{availablePrediction!.predicted_event ? "Event above threshold" : "Event below threshold"}</span>
+                                            <span>{availablePrediction!.predicted_event ? "Higher forecast risk" : "Lower forecast risk"}</span>
                                         </div>
 
                                         <div className="metric-grid">
                                             <MetricCard label="Model version" value={availablePrediction!.model_version ?? "n/a"} />
-                                            <MetricCard label="Feature date" value={availablePrediction!.feature_date_used ?? availablePrediction!.used_date ?? "n/a"} />
-                                            <MetricCard label="Weekly anchor" value={availablePrediction!.weekly_anchor_date ?? "n/a"} />
-                                            <MetricCard label="Prediction unit" value={availablePrediction!.prediction_unit ?? "n/a"} />
-                                            <MetricCard label="Context source" value={predictionContextLabel(availablePrediction!.context_source)} />
+                                            <MetricCard label="Forecast issue date" value={availablePrediction!.forecast_issue_date ?? availablePrediction!.feature_date_used ?? availablePrediction!.used_date ?? "n/a"} />
+                                            <MetricCard label="Matched Monday" value={availablePrediction!.weekly_anchor_date ?? "n/a"} />
+                                            <MetricCard label="Forecast unit" value={availablePrediction!.prediction_unit ?? "n/a"} />
+                                            <MetricCard label="Forecast source" value={predictionContextLabel(availablePrediction!.context_source)} />
+                                            <MetricCard label="Horizon" value={`${availablePrediction!.forecast_horizon_weeks ?? 4} weeks`} />
                                             <MetricCard
-                                                label="Weekly history"
+                                                label="History weeks"
                                                 value={
                                                     numericFeatureValue(availablePrediction!.features_used, "weekly_history_weeks_available")?.toFixed(0) ??
                                                     "n/a"
@@ -886,16 +917,23 @@ export default function MapEstimateLeaflet({
                                         </div>
 
                                         <p className="explanation-copy">
-                                            {availablePrediction!.coverage_notes?.join(" ") ??
-                                                "This model was selected over a climatology baseline, but it still weakens on held-out future years."}
+                                            {availablePrediction!.probability_meaning ??
+                                                "Chance of observed bleaching in the next 4 weeks."}{" "}
+                                            {`Forecast issue date: ${
+                                                availablePrediction!.forecast_issue_date ??
+                                                availablePrediction!.feature_date_used ??
+                                                availablePrediction!.used_date ??
+                                                "n/a"
+                                            }.`}{" "}
+                                            {availablePrediction!.coverage_notes?.join(" ") ?? "Based on site details plus recent NOAA heat history."}
                                         </p>
                                     </>
                                 ) : (
                                     <div className="empty-state empty-state--inline">
-                                        <strong>Prediction unavailable.</strong>
+                                        <strong>Forecast unavailable.</strong>
                                         <span>
                                             {prediction?.message ??
-                                                "A real probability was not computed for this survey date, so the UI does not label the result as below threshold."}
+                                                "No forecast was produced for this survey date."}
                                         </span>
                                     </div>
                                 )}
@@ -906,13 +944,12 @@ export default function MapEstimateLeaflet({
                     <div className="empty-state">
                         <strong>No site selected yet.</strong>
                         <span>
-                            Pan or zoom the map if needed, then click a visible point. The timeline will snap to that
-                            site’s newest valid observed date.
+                            Move the map if needed, then click a visible point to load the latest usable survey date for that site.
                         </span>
                     </div>
                 )}
 
-                {loadingSite || loadingAnalysis ? <div className="loading-banner">Loading site detail…</div> : null}
+                {loadingSite || loadingAnalysis ? <div className="loading-banner">Loading site details...</div> : null}
 
                 <LayerExplainer riskInfo={riskInfo} modelInfo={modelInfo} modelMetrics={modelMetrics} />
 
@@ -928,13 +965,13 @@ export default function MapEstimateLeaflet({
                         </span>
                     </div>
                     <div className="footnote-card">
-                        <strong>Adaptive rendering</strong>
+                        <strong>Display mode</strong>
                         <span>
                             {tier === "low"
-                                ? "Lower point density and reduced motion."
+                                ? "Fewer points and less motion."
                                 : tier === "medium"
-                                  ? "Balanced density and interaction polish."
-                                  : "Richer density and visual treatment."}
+                                  ? "Balanced detail and motion."
+                                  : "More detail and motion."}
                         </span>
                     </div>
                 </div>
